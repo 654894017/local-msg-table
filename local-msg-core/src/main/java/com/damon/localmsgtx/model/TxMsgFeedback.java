@@ -13,11 +13,11 @@ public class TxMsgFeedback {
     // 处理时间戳
     private long processTime;
 
-    public TxMsgFeedback(String msgKey, boolean success, String errorMsg, long processTime) {
+    public TxMsgFeedback(String msgKey, boolean success, String errorMsg) {
         this.msgKey = msgKey;
         this.success = success;
         this.errorMsg = errorMsg;
-        this.processTime = processTime;
+        this.processTime = System.currentTimeMillis();
     }
 
     public TxMsgFeedback() {

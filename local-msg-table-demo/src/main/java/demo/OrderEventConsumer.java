@@ -42,7 +42,7 @@ public class OrderEventConsumer {
                     System.out.printf("Received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
                             record.topic(), record.partition(), record.offset(), record.key(), record.value());
                     txFeedbackMsgClient.sendFeedbackMsg(
-                            new TxMsgFeedback(record.key(), true, null, System.currentTimeMillis())
+                            new TxMsgFeedback(record.key(), true, null)
                     );
                 }
                 if (!records.isEmpty()) {
