@@ -3,6 +3,7 @@ package demo.config;
 import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.client.impl.KafkaTxMsgClient;
 import com.damon.localmsgtx.config.TxMsgKafkaConfig;
+import com.damon.localmsgtx.feedback.TxFeedbackMsgDispatch;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -72,9 +73,9 @@ public class DemoLocalTxMsgCongfig {
     }
 
     @Bean
-    public com.damon.localmsgtx.feedback.TxFeedbackMsgHandler txFeedbackMsgDispatch(TxMsgKafkaConfig config) {
+    public TxFeedbackMsgDispatch txFeedbackMsgDispatch(TxMsgKafkaConfig config) {
         int concurrentThreadNumber = config.isEnableFeedbackMsgConsumer() ? 1 : 0;
-        return new com.damon.localmsgtx.feedback.TxFeedbackMsgHandler(config.getKafkaConsumer(), concurrentThreadNumber, config.getTxMsgSqlStore());
+        return new TxFeedbackMsgDispatch(config.getKafkaConsumer(), concurrentThreadNumber, config.getTxMsgSqlStore());
     }
 
 
