@@ -3,8 +3,6 @@ package demo.config;
 import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.client.impl.KafkaTxMsgClient;
 import com.damon.localmsgtx.config.TxMsgKafkaConfig;
-import com.damon.localmsgtx.feedback.TxFeedbackMsgDispatch;
-import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
@@ -35,8 +33,7 @@ public class DemoLocalTxMsgCongfig {
         props.put(ProducerConfig.ACKS_CONFIG, "all");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
 
-        KafkaProducer<String, String> kafkaProducer = new KafkaProducer<>(props);
-        return kafkaProducer;
+        return new KafkaProducer<>(props);
     }
 
     @Bean("feedbackConsumer")
@@ -74,17 +71,10 @@ public class DemoLocalTxMsgCongfig {
         return new KafkaTxMsgClient(config);
     }
 
-
     @Bean
-    public TxFeedbackMsgDispatch txFeedbackMsgDispatch(TxMsgKafkaConfig config) {
-        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(
-                config.getDataSource(),
-                config.getTxMsgTableName(),
-                config.getTopic(),
-                config.getFeedbackTopic()
-        );
+    public com.damon.localmsgtx.feedback.TxFeedbackMsgHandler txFeedbackMsgDispatch(TxMsgKafkaConfig config) {
         int concurrentThreadNumber = config.isEnableFeedbackMsgConsumer() ? 1 : 0;
-        return new TxFeedbackMsgDispatch(config.getKafkaConsumer(), concurrentThreadNumber, txMsgSqlStore);
+        return new com.damon.localmsgtx.feedback.TxFeedbackMsgHandler(config.getKafkaConsumer(), concurrentThreadNumber, config.getTxMsgSqlStore());
     }
 
 

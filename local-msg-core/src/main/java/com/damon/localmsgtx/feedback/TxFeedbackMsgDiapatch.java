@@ -23,9 +23,9 @@ import java.util.stream.Collectors;
  * Transaction Message Feedback Consumer
  * Processes message consumption result feedback from Kafka and updates message statuses
  */
-public class TxFeedbackMsgConsumer implements Runnable {
+public class TxFeedbackMsgDiapatch implements Runnable {
 
-    private static final Logger log = LoggerFactory.getLogger(TxFeedbackMsgConsumer.class);
+    private static final Logger log = LoggerFactory.getLogger(TxFeedbackMsgDiapatch.class);
     private static final int BATCH_PROCESS_SIZE = 500; // Batch processing size
     private static final Duration POLL_DURATION = Duration.ofMillis(1000); // Fixed polling duration
 
@@ -33,12 +33,12 @@ public class TxFeedbackMsgConsumer implements Runnable {
     private final KafkaConsumer<String, String> kafkaConsumer;
     private final AtomicBoolean isRunning = new AtomicBoolean(true); // Flag to control thread termination
 
-    public TxFeedbackMsgConsumer(TxMsgSqlStore txMsgSqlStore,
+    public TxFeedbackMsgDiapatch(TxMsgSqlStore txMsgSqlStore,
                                  KafkaConsumer<String, String> kafkaConsumer) {
         this(txMsgSqlStore, kafkaConsumer, BATCH_PROCESS_SIZE);
     }
 
-    public TxFeedbackMsgConsumer(TxMsgSqlStore txMsgSqlStore,
+    public TxFeedbackMsgDiapatch(TxMsgSqlStore txMsgSqlStore,
                                  KafkaConsumer<String, String> kafkaConsumer,
                                  int batchProcessSize) {
         // Parameter validation

@@ -7,13 +7,13 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 
 
-public class FeedbackTxMsgHandler {
+public class TxFeedbackMsgSender {
 
     private final KafkaProducer<String, String> kafkaProducer;
 
     private final String feedbackTopic;
 
-    public FeedbackTxMsgHandler(KafkaProducer<String, String> kafkaProducer, String feedbackTopic) {
+    public TxFeedbackMsgSender(KafkaProducer<String, String> kafkaProducer, String feedbackTopic) {
         this.kafkaProducer = kafkaProducer;
         this.feedbackTopic = feedbackTopic;
     }

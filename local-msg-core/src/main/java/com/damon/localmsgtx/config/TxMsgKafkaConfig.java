@@ -1,5 +1,6 @@
 package com.damon.localmsgtx.config;
 
+import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
 
@@ -10,7 +11,9 @@ public class TxMsgKafkaConfig {
     private String txMsgTableName;
 
     private DataSource dataSource;
+
     private String topic;
+
     private String feedbackTopic;
 
     private KafkaProducer<String, String> kafkaProducer;
@@ -73,5 +76,9 @@ public class TxMsgKafkaConfig {
 
     public void setFeedbackTopic(String feedbackTopic) {
         this.feedbackTopic = feedbackTopic;
+    }
+
+    public TxMsgSqlStore getTxMsgSqlStore() {
+        return new TxMsgSqlStore(dataSource, txMsgTableName, topic, feedbackTopic);
     }
 }

@@ -2,7 +2,7 @@ package demo.config;
 
 import com.damon.localmsgtx.client.ITxFeedbackMsgClient;
 import com.damon.localmsgtx.client.impl.KafkaTxFeedbackMsgClient;
-import com.damon.localmsgtx.handler.FeedbackTxMsgHandler;
+import com.damon.localmsgtx.handler.TxFeedbackMsgSender;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.common.serialization.StringSerializer;
@@ -26,15 +26,15 @@ public class DemoTxFeedbackMsgCongfig {
         return kafkaProducer;
     }
 
+
     @Bean
-    public FeedbackTxMsgHandler handler(KafkaProducer<String, String> feedbackProducer) {
-        return new FeedbackTxMsgHandler(feedbackProducer, DemoLocalTxMsgCongfig.feedbackTopic);
+    public TxFeedbackMsgSender sender(KafkaProducer<String, String> feedbackProducer) {
+        return new TxFeedbackMsgSender(feedbackProducer, DemoLocalTxMsgCongfig.feedbackTopic);
     }
 
-
     @Bean
-    public ITxFeedbackMsgClient txFeedbackMsgClient(FeedbackTxMsgHandler handler) {
-        return new KafkaTxFeedbackMsgClient(handler);
+    public ITxFeedbackMsgClient txFeedbackMsgClient(TxFeedbackMsgSender sender) {
+        return new KafkaTxFeedbackMsgClient(sender);
     }
 
 

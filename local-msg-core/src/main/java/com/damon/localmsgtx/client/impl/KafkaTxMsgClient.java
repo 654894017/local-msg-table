@@ -29,10 +29,8 @@ public class KafkaTxMsgClient implements ITxMsgClient {
 
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
-        Assert.notNull(config.getDataSource(), "DataSource cannot be null");
-        Assert.hasText(config.getTxMsgTableName(), "Message storage table name cannot be empty");
-
-        this.txMsgSqlStore = new TxMsgSqlStore(config.getDataSource(), config.getTxMsgTableName(), config.getTopic(), config.getFeedbackTopic());
+        Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
+        this.txMsgSqlStore = config.getTxMsgSqlStore();
         this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
         this.isEnableFeedbackMsgConsumer = config.isEnableFeedbackMsgConsumer();
     }
