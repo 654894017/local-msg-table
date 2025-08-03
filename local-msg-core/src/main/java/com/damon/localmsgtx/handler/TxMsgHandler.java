@@ -1,5 +1,8 @@
-package com.damon.localmsgtx;
+package com.damon.localmsgtx.handler;
 
+import com.damon.localmsgtx.model.TxMsgModel;
+import com.damon.localmsgtx.model.TxMsgStatusEnum;
+import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -145,10 +148,10 @@ public class TxMsgHandler {
      *
      * @param expireTime Expiration timestamp (milliseconds), sent messages with timestamps less than or equal to this time will be deleted
      */
-    public void deleteExpiredSentMessages(Long expireTime) {
+    public void deleteExpiredSentMessages(Long expireTime, TxMsgStatusEnum statusEnum) {
         Assert.notNull(expireTime, "Expiration timestamp cannot be null");
         logger.info("Starting to clean up expired sent messages, expiration time: {}ms", expireTime);
-        txMsgSqlStore.deleteExpiredSendedMsg(expireTime, deleteBatchSize);
+        txMsgSqlStore.deleteExpiredSendedMsg(expireTime, deleteBatchSize, statusEnum);
         logger.info("Cleanup of expired sent messages completed");
     }
 

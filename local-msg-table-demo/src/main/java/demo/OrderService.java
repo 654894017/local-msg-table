@@ -1,6 +1,6 @@
 package demo;
 
-import com.damon.localmsgtx.ITxMsgClient;
+import com.damon.localmsgtx.client.ITxMsgClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -27,7 +27,7 @@ public class OrderService {
         String messageContent = String.format("{\"orderId\":\"%s\",\"product\":\"%s\",\"quantity\":%d}",
                 orderId, product, quantity);
 
-        Long msgId = txMsgClient.sendTxMsg("order-events", orderId, messageContent);
+        Long msgId = txMsgClient.sendTxMsg(orderId, messageContent);
 
         System.out.println("Order created and transactional message registered, msgId: " + msgId);
 

@@ -1,10 +1,11 @@
-package com.damon.localmsgtx.impl;
+package com.damon.localmsgtx.client.impl;
 
-import com.damon.localmsgtx.ITxMsgClient;
-import com.damon.localmsgtx.TxMsgHandler;
-import com.damon.localmsgtx.TxMsgModel;
-import com.damon.localmsgtx.TxMsgSqlStore;
-import com.damon.localmsgtx.TxMsgKafkaConfig;
+import com.damon.localmsgtx.client.ITxMsgClient;
+import com.damon.localmsgtx.config.TxMsgKafkaConfig;
+import com.damon.localmsgtx.handler.TxMsgHandler;
+import com.damon.localmsgtx.model.TxMsgModel;
+import com.damon.localmsgtx.model.TxMsgStatusEnum;
+import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -23,33 +24,34 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
 
+    private final boolean isEnableFeedbackMsgConsumer;
+
 
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getDataSource(), "DataSource cannot be null");
         Assert.hasText(config.getTxMsgTableName(), "Message storage table name cannot be empty");
 
-        this.txMsgSqlStore = new TxMsgSqlStore(config.getDataSource(), config.getTxMsgTableName());
+        this.txMsgSqlStore = new TxMsgSqlStore(config.getDataSource(), config.getTxMsgTableName(), config.getTopic(), config.getFeedbackTopic());
         this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
+        this.isEnableFeedbackMsgConsumer = config.isEnableFeedbackMsgConsumer();
     }
 
     /**
      * Send transactional message
      * The message will be stored in the database first, and sent to Kafka after transaction commits
      *
-     * @param topic   Message topic (non-null)
      * @param msgKey  Message key (non-null)
      * @param content Message content (non-null)
      * @return Message ID
      */
     @Override
-    public Long sendTxMsg(String topic, String msgKey, String content) {
+    public Long sendTxMsg(String msgKey, String content) {
         // Parameter validation
-        Assert.hasText(topic, "Message topic cannot be empty");
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
 
-        TxMsgModel txMsg = storeTxMsg(content, topic, msgKey);
+        TxMsgModel txMsg = storeTxMsg(content, msgKey);
         registerTransactionCallback(txMsg);
         return txMsg.getId();
     }
@@ -57,14 +59,14 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     /**
      * Store message to database (within local transaction)
      */
-    private TxMsgModel storeTxMsg(String content, String topic, String msgKey) {
+    private TxMsgModel storeTxMsg(String content, String msgKey) {
         // Check transaction status
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             logger.error("Current operation is not within an active transaction, message sending consistency cannot be guaranteed");
         }
 
 
-        TxMsgModel txMsg = txMsgSqlStore.insertTxMsg(content, topic, msgKey);
+        TxMsgModel txMsg = txMsgSqlStore.insertTxMsg(content, msgKey);
         logger.debug("Transactional message stored in database, msgId: {}", txMsg.getId());
         return txMsg;
 
@@ -112,6 +114,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     public void cleanExpiredTxMsg(Long expireTime) {
         Assert.notNull(expireTime, "Expiration timestamp cannot be null");
         logger.info("Starting to clean up expired messages, expiration time: {}ms", expireTime);
-        txMsgHandler.deleteExpiredSentMessages(expireTime);
+        TxMsgStatusEnum statusEnum = isEnableFeedbackMsgConsumer ? TxMsgStatusEnum.CONSUMER_SUCCESS : TxMsgStatusEnum.SENT;
+        txMsgHandler.deleteExpiredSentMessages(expireTime, statusEnum);
     }
 }

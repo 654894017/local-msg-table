@@ -1,4 +1,4 @@
-package com.damon.localmsgtx;
+package com.damon.localmsgtx.model;
 
 public class TxMsgModel {
 
@@ -19,6 +19,8 @@ public class TxMsgModel {
      */
     private String topic;
 
+    private String feedbackTopic;
+
     /**
      * 状态：1-等待，2-发送
      */
@@ -30,6 +32,10 @@ public class TxMsgModel {
     private long createTime;
 
     private Long updateTime;
+
+    private long processTime;
+
+    private String errorMsg;
 
     public Long getId() {
         return id;
@@ -88,17 +94,27 @@ public class TxMsgModel {
         this.updateTime = updateTime;
     }
 
-    @Override
-    public String toString() {
-        final StringBuffer sb = new StringBuffer("TxMsgModel{");
-        sb.append("id=").append(id);
-        sb.append(", content='").append(content).append('\'');
-        sb.append(", topic='").append(topic).append('\'');
-        sb.append(", msgKey='").append(msgKey).append('\'');
-        sb.append(", status=").append(status);
-        sb.append(", createTime=").append(createTime);
-        sb.append(", updateTime=").append(updateTime);
-        sb.append('}');
-        return sb.toString();
+    public String getFeedbackTopic() {
+        return feedbackTopic;
+    }
+
+    public void setFeedbackTopic(String feedbackTopic) {
+        this.feedbackTopic = feedbackTopic;
+    }
+
+    public long getProcessTime() {
+        return processTime;
+    }
+
+    public void setProcessTime(long processTime) {
+        this.processTime = processTime;
+    }
+
+    public String getErrorMsg() {
+        return errorMsg;
+    }
+
+    public void setErrorMsg(String errorMsg) {
+        this.errorMsg = errorMsg;
     }
 }

@@ -1,8 +1,8 @@
-package com.damon.localmsgtx;
+package com.damon.localmsgtx.client;
 
 
 public interface ITxMsgClient {
-    Long sendTxMsg(String topic, String msgKey, String content);
+    Long sendTxMsg(String msgKey, String content);
 
     void resendFailedTxMsg();
 

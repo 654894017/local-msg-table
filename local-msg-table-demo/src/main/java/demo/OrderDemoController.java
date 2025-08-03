@@ -1,6 +1,6 @@
 package demo;
 
-import com.damon.localmsgtx.ITxMsgClient;
+import com.damon.localmsgtx.client.ITxMsgClient;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
