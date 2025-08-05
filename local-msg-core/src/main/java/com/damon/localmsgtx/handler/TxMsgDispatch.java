@@ -1,6 +1,5 @@
-package com.damon.localmsgtx.feedback;
+package com.damon.localmsgtx.handler;
 
-import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.DefaultThreadFactory;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.slf4j.Logger;
@@ -8,22 +7,19 @@ import org.slf4j.Logger;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class TxFeedbackMsgDispatch {
+public class TxMsgDispatch<T> {
 
-    private final Logger logger = org.slf4j.LoggerFactory.getLogger(TxFeedbackMsgDispatch.class);
+    private final Logger logger = org.slf4j.LoggerFactory.getLogger(TxMsgDispatch.class);
 
     private final int concurrentThreadNumber;
-
-    private final TxMsgSqlStore txMsgSqlStore;
 
     private final KafkaConsumer<String, String> kafkaConsumer;
 
     private final ExecutorService threadPoolExecutor;
 
-    public TxFeedbackMsgDispatch(KafkaConsumer<String, String> kafkaConsumer, int concurrentThreadNumber, TxMsgSqlStore txMsgSqlStore) {
+    public TxMsgDispatch(KafkaConsumer<String, String> kafkaConsumer, int concurrentThreadNumber) {
         this.kafkaConsumer = kafkaConsumer;
         this.concurrentThreadNumber = concurrentThreadNumber;
-        this.txMsgSqlStore = txMsgSqlStore;
         // 使用自定义ThreadFactory创建线程池
         this.threadPoolExecutor = Executors.newFixedThreadPool(
                 concurrentThreadNumber,
@@ -34,7 +30,7 @@ public class TxFeedbackMsgDispatch {
 
     private void init() {
         for (int i = 0; i < concurrentThreadNumber; i++) {
-            threadPoolExecutor.submit(new TxFeedbackMsgHandler(txMsgSqlStore, kafkaConsumer));
+            threadPoolExecutor.submit(new TxMsgKafkaHandler<T>(kafkaConsumer));
         }
         logger.info("TxFeedbackMsgHandler init finished, current thread number : {}", concurrentThreadNumber);
     }

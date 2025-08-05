@@ -1,25 +1,21 @@
 package demo;
 
 import com.damon.localmsgtx.client.ITxFeedbackMsgClient;
-import com.damon.localmsgtx.model.TxMsgFeedback;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
-import org.apache.kafka.clients.consumer.ConsumerRecord;
-import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-//@Component
-public class OrderEventConsumer {
+@Component
+public class OrderEventConsumer2 {
     @Autowired
     private ITxFeedbackMsgClient txFeedbackMsgClient;
 
-    public OrderEventConsumer() {
+    public OrderEventConsumer2() {
         // 在后台线程中启动消费者
         new Thread(this::consumeMessages).start();
     }
@@ -35,24 +31,7 @@ public class OrderEventConsumer {
         consumer.subscribe(Collections.singletonList("order-events"));
         System.out.println("Kafka consumer started, listening to 'order-events' topic");
 
-        try {
-            while (true) {
-                ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
-                for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("Received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
-                            record.topic(), record.partition(), record.offset(), record.key(), record.value());
-                    txFeedbackMsgClient.sendFeedbackMsg(
-                            new TxMsgFeedback(record.key(), true, null)
-                    );
-                }
-                if (!records.isEmpty()) {
-                    consumer.commitSync();
-                }
-            }
-        } catch (Exception e) {
-            System.err.println("Error in Kafka consumer: " + e.getMessage());
-        } finally {
-            consumer.close();
-        }
+        TestKafkaHandler testConsumer = new TestKafkaHandler(consumer);
+        testConsumer.run();
     }
 }

@@ -67,19 +67,17 @@ public class TxFeedbackMsgHandler implements Runnable {
                 if (records.isEmpty()) {
                     continue;
                 }
-
                 // Process messages and update statuses in batches
                 processRecords(records);
-                // Synchronously commit offsets
-                kafkaConsumer.commitSync();
             } catch (Exception e) {
                 log.error("Error occurred while processing feedback messages", e);
                 try {
                     Thread.sleep(1000);
                 } catch (InterruptedException ie) {
-                    // Restore interrupt status
-                    Thread.currentThread().interrupt();
                 }
+            } finally {
+                // Synchronously commit offsets
+                kafkaConsumer.commitSync();
             }
         }
     }

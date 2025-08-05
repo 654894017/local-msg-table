@@ -8,6 +8,8 @@ public class TxMsgFeedbackKafkaConfig {
 
     private KafkaProducer<String, String> kafkaProducer;
 
+    private int concurrentThreadNumber;
+
     public String getTopic() {
         return topic;
     }
@@ -23,4 +25,6 @@ public class TxMsgFeedbackKafkaConfig {
     public void setKafkaProducer(KafkaProducer<String, String> kafkaProducer) {
         this.kafkaProducer = kafkaProducer;
     }
+
+
 }
