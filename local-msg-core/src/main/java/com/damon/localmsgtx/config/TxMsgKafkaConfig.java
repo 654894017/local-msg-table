@@ -4,6 +4,7 @@ import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.apache.kafka.clients.producer.KafkaProducer;
 
 import javax.sql.DataSource;
+import java.util.concurrent.ExecutorService;
 
 public class TxMsgKafkaConfig {
 
@@ -14,6 +15,10 @@ public class TxMsgKafkaConfig {
     private String topic;
 
     private KafkaProducer<String, String> kafkaProducer;
+
+    private boolean syncSendMsg;
+
+    private ExecutorService asyncSendExecutor;
 
     public String getTxMsgTableName() {
         return txMsgTableName;
@@ -47,7 +52,20 @@ public class TxMsgKafkaConfig {
         this.topic = topic;
     }
 
+    public boolean isSyncSendMsg() {
+        return syncSendMsg;
+    }
+
     public TxMsgSqlStore getTxMsgSqlStore() {
         return new TxMsgSqlStore(dataSource, txMsgTableName, topic);
+    }
+
+    public ExecutorService getAsyncSendExecutor() {
+        return asyncSendExecutor;
+    }
+
+    public void setAsyncSendExecutor(ExecutorService asyncSendExecutor) {
+        this.asyncSendExecutor = asyncSendExecutor;
+        this.syncSendMsg = false;
     }
 }

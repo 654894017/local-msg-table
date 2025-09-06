@@ -11,6 +11,8 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 @Configuration
 public class DemoLocalTxMsgCongfig {
@@ -34,11 +36,21 @@ public class DemoLocalTxMsgCongfig {
     public TxMsgKafkaConfig config(
             DataSource dataSource,
             KafkaProducer<String, String> producer) {
+        // 创建异步发送线程池,用于发送事务消息到kafka
+        ExecutorService asyncSendExecutor = Executors.newThreadPerTaskExecutor(
+                r -> {
+                    Thread thread = Thread.ofVirtual().unstarted(r);
+                    thread.setName("kafka-tx-msg-sender-" + thread.threadId());
+                    return thread;
+                }
+        );
+
         TxMsgKafkaConfig config = new TxMsgKafkaConfig();
         config.setDataSource(dataSource);
         config.setTopic(topic);
         config.setKafkaProducer(producer);
         config.setTxMsgTableName("transactional_messages");
+        config.setAsyncSendExecutor(asyncSendExecutor);
         return config;
     }
 

@@ -14,6 +14,8 @@ import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
 
+import java.util.concurrent.ExecutorService;
+
 /**
  * Kafka transactional message client implementation
  * Ensuring eventual consistency between message sending and local transactions
@@ -24,12 +26,16 @@ public class KafkaTxMsgClient implements ITxMsgClient {
 
     private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
+    private final boolean isSyncSendMsg;
+    private ExecutorService asyncSendExecutor;
 
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
         this.txMsgSqlStore = config.getTxMsgSqlStore();
         this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
+        this.isSyncSendMsg = config.isSyncSendMsg();
+        this.asyncSendExecutor = config.getAsyncSendExecutor();
     }
 
     /**
@@ -76,7 +82,11 @@ public class KafkaTxMsgClient implements ITxMsgClient {
             @Override
             public void afterCommit() {
                 logger.debug("Transaction committed, preparing to send message, msgId: {}", txMsg.getId());
-                txMsgHandler.sendMsg(txMsg);
+                if (isSyncSendMsg) {
+                    txMsgHandler.sendMsg(txMsg);
+                } else {
+                    asyncSendExecutor.submit(() -> txMsgHandler.sendMsg(txMsg));
+                }
             }
 
             @Override
