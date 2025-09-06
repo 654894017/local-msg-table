@@ -16,7 +16,7 @@ public class TxMsgKafkaConfig {
 
     private KafkaProducer<String, String> kafkaProducer;
 
-    private boolean syncSendMsg;
+    private boolean asyncSendMsg;
 
     private ExecutorService asyncSendExecutor;
 
@@ -52,8 +52,8 @@ public class TxMsgKafkaConfig {
         this.topic = topic;
     }
 
-    public boolean isSyncSendMsg() {
-        return syncSendMsg;
+    public boolean isAsyncSendMsg() {
+        return asyncSendMsg;
     }
 
     public TxMsgSqlStore getTxMsgSqlStore() {
@@ -66,6 +66,6 @@ public class TxMsgKafkaConfig {
 
     public void setAsyncSendExecutor(ExecutorService asyncSendExecutor) {
         this.asyncSendExecutor = asyncSendExecutor;
-        this.syncSendMsg = false;
+        this.asyncSendMsg = true;
     }
 }

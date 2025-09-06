@@ -26,15 +26,15 @@ public class KafkaTxMsgClient implements ITxMsgClient {
 
     private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
-    private final boolean isSyncSendMsg;
-    private ExecutorService asyncSendExecutor;
+    private final boolean isAsyncSendMsg;
+    private final ExecutorService asyncSendExecutor;
 
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
         this.txMsgSqlStore = config.getTxMsgSqlStore();
         this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
-        this.isSyncSendMsg = config.isSyncSendMsg();
+        this.isAsyncSendMsg = config.isAsyncSendMsg();
         this.asyncSendExecutor = config.getAsyncSendExecutor();
     }
 
@@ -82,7 +82,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
             @Override
             public void afterCommit() {
                 logger.debug("Transaction committed, preparing to send message, msgId: {}", txMsg.getId());
-                if (isSyncSendMsg) {
+                if (!isAsyncSendMsg) {
                     txMsgHandler.sendMsg(txMsg);
                 } else {
                     asyncSendExecutor.submit(() -> txMsgHandler.sendMsg(txMsg));
