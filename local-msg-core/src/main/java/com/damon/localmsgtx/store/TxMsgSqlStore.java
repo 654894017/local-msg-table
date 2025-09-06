@@ -41,7 +41,7 @@ public class TxMsgSqlStore {
               `content` text NOT NULL COMMENT '消息内容（JSON格式或字符串）',
               `topic` varchar(255) NOT NULL COMMENT 'Kafka消息主题',
               `msg_key` varchar(128) NOT NULL COMMENT '消息唯一标识（用于幂等性处理）',
-              `status` tinyint NOT NULL COMMENT '消息状态：1-等待发送，2-已发送',
+              `status` tinyint NOT NULL COMMENT '消息状态：0-等待发送，1-已发送',
               `create_time` bigint NOT NULL COMMENT '创建时间（毫秒时间戳）',
               `update_time` bigint NOT NULL COMMENT '更新时间（毫秒时间戳）',
               PRIMARY KEY (`id`),

@@ -5,8 +5,8 @@ package com.damon.localmsgtx.model;
  */
 public enum TxMsgStatusEnum {
 
-    WAITING(1, "Waiting to send"),
-    SENT(2, "Sent");
+    WAITING(0, "Waiting to send"),
+    SENT(1, "Sent");
 
     private int status;
 
