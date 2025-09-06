@@ -1,27 +1,26 @@
 package com.damon.order.demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+@Slf4j
 @Service
+@RequiredArgsConstructor
 public class OrderDemoService {
-    private final Logger logger = LoggerFactory.getLogger(OrderDemoService.class);
-    @Autowired
-    private JdbcTemplate jdbcTemplate;
-    @Autowired
-    private ITxMsgClient txMsgClient;
+    private final JdbcTemplate jdbcTemplate;
+    private final ITxMsgClient txMsgClient;
 
     /**
      * 创建订单并发送事务消息
      * 这里演示了事务一致性：订单创建和消息发送在同一事务中
      */
-    @Transactional
+    @Transactional(rollbackFor = Exception.class)
     public void createOrder(String orderId, String product, int quantity) {
+
         // 1. 创建订单记录
         String insertOrderSql = "INSERT INTO orders (order_id, product, quantity, status) VALUES (?, ?, ?, ?)";
         jdbcTemplate.update(insertOrderSql, orderId, product, quantity, "CREATED");
@@ -32,7 +31,6 @@ public class OrderDemoService {
 
         Long msgId = txMsgClient.sendTxMsg(orderId, messageContent);
 
-        logger.info("Order created and transactional message registered, msgId: " + msgId);
-
+        log.info("Order created and transactional message registered, msgId: " + msgId);
     }
 }

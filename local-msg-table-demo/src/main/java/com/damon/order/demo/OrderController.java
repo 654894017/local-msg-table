@@ -1,16 +1,17 @@
 package com.damon.order.demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
-import org.springframework.beans.factory.annotation.Autowired;
+import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
+@RequiredArgsConstructor
 public class OrderController {
-    @Autowired
-    private OrderDemoService orderDemoService;
-    @Autowired
-    private ITxMsgClient txMsgClient;
+
+    private final OrderDemoService orderDemoService;
+
+    private final ITxMsgClient txMsgClient;
 
     /**
      * 创建订单并发送事务消息
