@@ -49,7 +49,6 @@ public class TxMsgSqlStore {
               KEY `idx_status_create_time` (`status`,`create_time`) COMMENT '用于查询等待发送的消息和清理过期消息'
             ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='事务消息存储表（确保消息发送与本地事务一致性）';
             """;
-    private final String EMPTY_STRING = "";
     /**
      * Database table name (default: mq_messages)
      */
