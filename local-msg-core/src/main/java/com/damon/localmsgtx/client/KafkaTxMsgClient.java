@@ -1,7 +1,6 @@
 package com.damon.localmsgtx.client;
 
 import com.damon.localmsgtx.config.TxMsgKafkaConfig;
-import com.damon.localmsgtx.exception.TxMsgDuplicateKeyException;
 import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.handler.TxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
@@ -47,7 +46,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * @return Message ID
      */
     @Override
-    public Long sendTxMsg(String msgKey, String content) throws TxMsgDuplicateKeyException, TxMsgException {
+    public Long sendTxMsg(String msgKey, String content) throws TxMsgException {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");

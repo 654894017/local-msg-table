@@ -16,7 +16,3 @@ spring:
 
 server:
   port: 8080
-
-# Kafka配置
-kafka:
-  bootstrap-servers: localhost:9092

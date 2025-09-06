@@ -8,9 +8,9 @@ public enum TxMsgStatusEnum {
     WAITING(0, "Waiting to send"),
     SENT(1, "Sent");
 
-    private int status;
+    private final int status;
 
-    private String desc;
+    private final String desc;
 
     TxMsgStatusEnum(int status, String desc) {
         this.status = status;
