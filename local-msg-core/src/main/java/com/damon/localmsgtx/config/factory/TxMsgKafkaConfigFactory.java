@@ -8,9 +8,12 @@ import java.util.concurrent.ExecutorService;
 
 public class TxMsgKafkaConfigFactory {
 
-    public static TxMsgKafkaConfig simpleConfig(String server, String topic, DataSource dataSource, String txMsgTableName) {
+    public static TxMsgKafkaConfig simpleConfig(String kafkaServer, String topic, DataSource dataSource, String txMsgTableName) {
+
         ExecutorService asyncSendExecutor = ThreadPoolFactory.simpleThreadPool();
-        KafkaProducer<String, String> producer = KafkaProducerFactory.simpleProducer(server);
+
+        KafkaProducer<String, String> producer = KafkaProducerFactory.simpleProducer(kafkaServer);
+
         TxMsgKafkaConfig config = new TxMsgKafkaConfig();
         config.setDataSource(dataSource);
         config.setTopic(topic);

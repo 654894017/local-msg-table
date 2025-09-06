@@ -5,12 +5,12 @@ import java.util.concurrent.Executors;
 
 public class ThreadPoolFactory {
     /**
-     * 基于jdk21的虚拟线程池
+     * base on jdk21 virtual thread pool
      *
      * @return
      */
     public static ExecutorService simpleThreadPool() {
-        // 创建异步发送线程池,用于发送事务消息到kafka
+        // create async send thread pool, used to send transaction messages to kafka
         return Executors.newThreadPerTaskExecutor(
                 r -> {
                     Thread thread = Thread.ofVirtual().unstarted(r);

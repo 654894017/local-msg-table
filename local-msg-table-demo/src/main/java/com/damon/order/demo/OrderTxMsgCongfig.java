@@ -14,10 +14,8 @@ public class OrderTxMsgCongfig {
     @Bean
     public ITxMsgClient txMsgClient(DataSource dataSource) {
         TxMsgKafkaConfig config = TxMsgKafkaConfigFactory.simpleConfig(
-                "localhost:9092",
-                "order-events",
-                dataSource,
-                "transactional_messages"
+                "localhost:9092", "order-events",
+                dataSource, "transactional_messages"
         );
         return new KafkaTxMsgClient(config);
     }
