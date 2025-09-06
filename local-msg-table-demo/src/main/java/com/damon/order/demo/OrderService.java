@@ -1,4 +1,4 @@
-package demo;
+package com.damon.order.demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
 import org.slf4j.Logger;

@@ -14,11 +14,11 @@ public class TxMsgKafkaConfig {
 
     private String topic;
 
-    private KafkaProducer<String, String> kafkaProducer;
-
     private boolean asyncSendMsg;
 
     private ExecutorService asyncSendExecutor;
+
+    private KafkaProducer<String, String> kafkaProducer;
 
     public String getTxMsgTableName() {
         return txMsgTableName;

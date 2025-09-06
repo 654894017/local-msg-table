@@ -1,4 +1,4 @@
-package demo;
+package com.damon.order.demo;
 
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;

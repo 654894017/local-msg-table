@@ -1,9 +1,9 @@
-package demo;
+package com.damon.order.demo;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = "demo")
+@SpringBootApplication(scanBasePackages = "com.damon.order")
 public class DemoApplication {
     public static void main(String[] args) {
         SpringApplication.run(DemoApplication.class, args);
