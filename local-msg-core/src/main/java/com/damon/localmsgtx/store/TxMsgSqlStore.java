@@ -56,7 +56,6 @@ public class TxMsgSqlStore {
     private final String tableName;
     private final JdbcTemplate jdbcTemplate;
     private final String topic;
-    private final String feedbackTopic;
 
     /**
      * Constructor (supports custom table name)
@@ -64,14 +63,13 @@ public class TxMsgSqlStore {
      * @param dataSource Data source
      * @param tableName  Message storage table name
      */
-    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic, String feedbackTopic) {
+    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic) {
         Assert.notNull(dataSource, "Data source cannot be null");
         Assert.hasText(topic, "topic cannot be empty");
         Assert.hasText(tableName, "Table name cannot be empty");
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.tableName = tableName;
         this.topic = topic;
-        this.feedbackTopic = feedbackTopic;
         initializeTable();
     }
 
