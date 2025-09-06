@@ -26,16 +26,16 @@ import java.util.List;
  */
 public class TxMsgSqlStore {
 
-    private static final Logger logger = LoggerFactory.getLogger(TxMsgSqlStore.class);
+    private final Logger logger = LoggerFactory.getLogger(TxMsgSqlStore.class);
     // SQL语句常量
-    private static final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, create_time, update_time ) " +
+    private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, create_time, update_time ) " +
             "VALUES (?, ?, ?, ?, ?, ?)";
-    private static final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ?";
-    private static final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
+    private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ?";
+    private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
             "FROM %s WHERE status = ? ORDER BY create_time ASC LIMIT ?";
-    private static final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
-    private static final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
-    private final static String CREATE_TABLE_SQL = """
+    private final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
+    private final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
+    private final String CREATE_TABLE_SQL = """
             CREATE TABLE `%s` (
               `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
               `content` text NOT NULL COMMENT '消息内容（JSON格式或字符串）',
