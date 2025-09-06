@@ -11,10 +11,14 @@ import javax.sql.DataSource;
 
 @Configuration
 public class OrderTxMsgCongfig {
+    public static final String ORDER_TOPIC = "order-events";
+
+    public static final String KAFKA_SERVER = "localhost:9092";
+
     @Bean
     public ITxMsgClient txMsgClient(DataSource dataSource) {
         TxMsgKafkaConfig config = TxMsgKafkaConfigFactory.simpleConfig(
-                "localhost:9092", "order-events",
+                KAFKA_SERVER, ORDER_TOPIC,
                 dataSource, "transactional_messages"
         );
         return new KafkaTxMsgClient(config);

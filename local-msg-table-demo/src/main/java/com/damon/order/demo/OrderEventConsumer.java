@@ -21,13 +21,13 @@ public class OrderEventConsumer {
 
     private void consumeMessages() {
         Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:9092");
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, OrderTxMsgCongfig.KAFKA_SERVER);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "order-event-consumer-group");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
-        consumer.subscribe(Collections.singletonList("order-events"));
+        consumer.subscribe(Collections.singletonList(OrderTxMsgCongfig.ORDER_TOPIC));
         System.out.println("Kafka consumer started, listening to 'order-events' topic");
 
         try {
