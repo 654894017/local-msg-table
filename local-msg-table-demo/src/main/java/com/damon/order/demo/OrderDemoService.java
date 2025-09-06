@@ -9,8 +9,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class OrderService {
-    private final Logger logger = LoggerFactory.getLogger(OrderService.class);
+public class OrderDemoService {
+    private final Logger logger = LoggerFactory.getLogger(OrderDemoService.class);
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired

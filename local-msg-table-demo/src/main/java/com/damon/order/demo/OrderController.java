@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.*;
 
 @RestController
 @RequestMapping("/api")
-public class OrderDemoController {
+public class OrderController {
     @Autowired
-    private OrderService orderService;
+    private OrderDemoService orderDemoService;
     @Autowired
     private ITxMsgClient txMsgClient;
 
@@ -20,7 +20,7 @@ public class OrderDemoController {
                               @RequestParam("product") String product,
                               @RequestParam("quantity") int quantity) {
         try {
-            orderService.createOrder(orderId, product, quantity);
+            orderDemoService.createOrder(orderId, product, quantity);
             return "Order created successfully with transactional message sent";
         } catch (Exception e) {
             return "Failed to create order: " + e.getMessage();
