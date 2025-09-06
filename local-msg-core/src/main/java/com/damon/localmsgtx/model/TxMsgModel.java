@@ -19,7 +19,6 @@ public class TxMsgModel {
      */
     private String topic;
 
-    private String feedbackTopic;
 
     /**
      * 状态：1-等待，2-发送
@@ -33,9 +32,6 @@ public class TxMsgModel {
 
     private Long updateTime;
 
-    private long processTime;
-
-    private String errorMsg;
 
     public Long getId() {
         return id;
@@ -92,29 +88,5 @@ public class TxMsgModel {
 
     public void setUpdateTime(Long updateTime) {
         this.updateTime = updateTime;
-    }
-
-    public String getFeedbackTopic() {
-        return feedbackTopic;
-    }
-
-    public void setFeedbackTopic(String feedbackTopic) {
-        this.feedbackTopic = feedbackTopic;
-    }
-
-    public long getProcessTime() {
-        return processTime;
-    }
-
-    public void setProcessTime(long processTime) {
-        this.processTime = processTime;
-    }
-
-    public String getErrorMsg() {
-        return errorMsg;
-    }
-
-    public void setErrorMsg(String errorMsg) {
-        this.errorMsg = errorMsg;
     }
 }

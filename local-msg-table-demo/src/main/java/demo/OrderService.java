@@ -1,6 +1,8 @@
 package demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -8,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class OrderService {
+    private final Logger logger = LoggerFactory.getLogger(OrderService.class);
     @Autowired
     private JdbcTemplate jdbcTemplate;
     @Autowired
@@ -29,7 +32,7 @@ public class OrderService {
 
         Long msgId = txMsgClient.sendTxMsg(orderId, messageContent);
 
-        System.out.println("Order created and transactional message registered, msgId: " + msgId);
+        logger.info("Order created and transactional message registered, msgId: " + msgId);
 
     }
 }

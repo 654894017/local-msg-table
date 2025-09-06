@@ -1,23 +1,18 @@
 package demo;
 
-import com.damon.localmsgtx.client.ITxFeedbackMsgClient;
-import com.damon.localmsgtx.model.TxMsgFeedback;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.common.serialization.StringDeserializer;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
-//@Component
+@Component
 public class OrderEventConsumer {
-    @Autowired
-    private ITxFeedbackMsgClient txFeedbackMsgClient;
 
     public OrderEventConsumer() {
         // 在后台线程中启动消费者
@@ -41,9 +36,6 @@ public class OrderEventConsumer {
                 for (ConsumerRecord<String, String> record : records) {
                     System.out.printf("Received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
                             record.topic(), record.partition(), record.offset(), record.key(), record.value());
-                    txFeedbackMsgClient.sendFeedbackMsg(
-                            new TxMsgFeedback(record.key(), true, null)
-                    );
                 }
                 if (!records.isEmpty()) {
                     consumer.commitSync();

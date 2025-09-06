@@ -1,13 +1,12 @@
 package com.damon.localmsgtx.store;
 
-import com.damon.localmsgtx.TxMsgException;
-import com.damon.localmsgtx.model.TxMsgFailed;
+import com.damon.localmsgtx.exception.TxMsgDuplicateKeyException;
+import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
-import com.damon.localmsgtx.model.TxMsgSuccess;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
@@ -19,7 +18,6 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.Arrays;
 import java.util.List;
 
 /**
@@ -30,13 +28,11 @@ public class TxMsgSqlStore {
 
     private static final Logger logger = LoggerFactory.getLogger(TxMsgSqlStore.class);
     // SQL语句常量
-    private static final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, feedback_topic, status, create_time, update_time, process_time, error_msg ) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)";
+    private static final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, create_time, update_time ) " +
+            "VALUES (?, ?, ?, ?, ?, ?)";
     private static final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ?";
-    private static final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time, error_msg " +
+    private static final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
             "FROM %s WHERE status = ? ORDER BY create_time ASC LIMIT ?";
-    private static final String UPDATE_CONSUMER_FAILED_SQL = "UPDATE %s SET status = ?, error_msg = ?, update_time = ?, process_time = ? WHERE msg_key = ?";
-    private static final String UPDATE_CONSUMER_SUCCESS_SQL = "UPDATE %s SET status = ?, update_time = ?, process_time = ? WHERE msg_key = ?";
     private static final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
     private static final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
     private final static String CREATE_TABLE_SQL = """
@@ -44,13 +40,10 @@ public class TxMsgSqlStore {
               `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
               `content` text NOT NULL COMMENT '消息内容（JSON格式或字符串）',
               `topic` varchar(255) NOT NULL COMMENT 'Kafka消息主题',
-              `feedback_topic` varchar(255) NOT NULL COMMENT '反馈处理结构的Kafka消息主题',
               `msg_key` varchar(128) NOT NULL COMMENT '消息唯一标识（用于幂等性处理）',
-              `status` tinyint NOT NULL COMMENT '消息状态：1-等待发送，2-已发送，3-消费失败，4-消费成功',
+              `status` tinyint NOT NULL COMMENT '消息状态：1-等待发送，2-已发送',
               `create_time` bigint NOT NULL COMMENT '创建时间（毫秒时间戳）',
               `update_time` bigint NOT NULL COMMENT '更新时间（毫秒时间戳）',
-              `process_time` bigint NOT NULL COMMENT '业务处理时间（毫秒时间戳）',
-              `error_msg` text NOT NULL COMMENT '消费者返回的错误消息内容',
               PRIMARY KEY (`id`),
               UNIQUE KEY `uk_msg_key` (`msg_key`) USING BTREE COMMENT '用于根据msgKey查询消息（可选，根据业务需求添加）',
               KEY `idx_status_create_time` (`status`,`create_time`) COMMENT '用于查询等待发送的消息和清理过期消息'
@@ -150,17 +143,17 @@ public class TxMsgSqlStore {
                 ps.setString(1, msgKey);
                 ps.setString(2, content);
                 ps.setString(3, topic);
-                ps.setString(4, feedbackTopic);
-                ps.setInt(5, TxMsgStatusEnum.WAITING.getStatus());
+                ps.setInt(4, TxMsgStatusEnum.WAITING.getStatus());
+                ps.setLong(5, currentTime);
                 ps.setLong(6, currentTime);
-                ps.setLong(7, currentTime);
-                ps.setLong(8, 0);
-                ps.setString(9, EMPTY_STRING);
                 return ps;
             }, keyHolder);
             Long id = keyHolder.getKey().longValue();
             logger.debug("Transactional message inserted successfully, id: {}, topic: {}, msgKey: {}", id, topic, msgKey);
             return buildTxMsgModel(id, content, topic, msgKey, TxMsgStatusEnum.WAITING.getStatus(), currentTime);
+        } catch (DuplicateKeyException e) {
+            logger.warn("Duplicate key exception occurred while inserting transactional message, topic: {}, msgKey: {}", topic, msgKey, e);
+            throw new TxMsgDuplicateKeyException("Duplicate key exception occurred while inserting transactional message", e);
         } catch (Exception e) {
             logger.error("Exception occurred while inserting transactional message, topic: {}, msgKey: {}", topic, msgKey, e);
             throw new TxMsgException("Exception occurred while inserting transactional message", e);
@@ -299,90 +292,6 @@ public class TxMsgSqlStore {
         }
     }
 
-    /**
-     * marking message as consumer failed
-     *
-     */
-    /**
-     * 批量标记消息为消费者处理失败（支持不同消息有不同的错误信息）
-     *
-     * @param failedList 消息ID和错误信息的键值对列表
-     * @return 更新的行数
-     */
-    public int batchMarkConsumerFailed(List<TxMsgFailed> failedList) {
-        Assert.notNull(failedList, "Message ID and error pairs cannot be null");
-        Assert.isTrue(!failedList.isEmpty(), "Message ID and error pairs cannot be empty");
-
-        // 检查是否有null的消息ID
-        for (TxMsgFailed pair : failedList) {
-            Assert.notNull(pair.getErrorMsg(), "Message ID cannot be null");
-        }
-
-        try {
-            int totalUpdatedRows = 0;
-
-            // 由于每条消息可能有不同的错误信息，我们需要逐条更新
-            // 但为了提高效率，我们使用批处理方式
-            String sql = String.format(UPDATE_CONSUMER_FAILED_SQL, tableName);
-
-            // 使用批处理方式执行多个更新操作
-            int[] updatedRows = jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    TxMsgFailed msgFailed = failedList.get(i);
-                    ps.setInt(1, TxMsgStatusEnum.CONSUMER_FAILED.getStatus());
-                    String errorMsg = msgFailed.getErrorMsg() != null ?
-                            msgFailed.getErrorMsg().substring(0, Math.min(msgFailed.getErrorMsg().length(), 512)) : EMPTY_STRING;
-                    ps.setString(2, errorMsg);
-                    ps.setLong(3, System.currentTimeMillis());
-                    ps.setString(4, msgFailed.getMsgKey());
-                }
-
-                @Override
-                public int getBatchSize() {
-                    return failedList.size();
-                }
-            });
-            return Arrays.stream(updatedRows).sum();
-        } catch (Exception e) {
-            logger.error("Exception occurred during batch marking messages as consumer failed with different errors, pairs: {}",
-                    failedList, e);
-            throw new TxMsgException("Exception occurred during batch marking messages as consumer failed with different errors", e);
-        }
-    }
-
-    /**
-     * marking message as consumer success
-     */
-    public int batchMarkConsumerSuccess(List<TxMsgSuccess> successList) {
-        Assert.notNull(successList, "Message ID list cannot be null");
-        Assert.isTrue(!successList.isEmpty(), "Message ID list cannot be empty");
-        long currentTime = System.currentTimeMillis();
-        try {
-            String sql = String.format(UPDATE_CONSUMER_SUCCESS_SQL, tableName);
-            int[] results = jdbcTemplate.batchUpdate(sql, new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    TxMsgSuccess msg = successList.get(i);
-                    ps.setInt(1, TxMsgStatusEnum.CONSUMER_SUCCESS.getStatus());
-                    ps.setLong(2, currentTime);
-                    ps.setLong(3, msg.getProcessTime());
-                    ps.setString(4, msg.getMsgKey());
-                }
-
-                @Override
-                public int getBatchSize() {
-                    return successList.size();
-                }
-            });
-
-            return Arrays.stream(results).sum();
-        } catch (Exception e) {
-            logger.error("Exception occurred during batch marking messages as consumer success, message ID list: {}", successList.size(), e);
-            throw new TxMsgException("Exception occurred during batch marking messages as consumer success", e);
-        }
-    }
-
     public static class TxMsgRowMapper implements RowMapper<TxMsgModel> {
         @Override
         public TxMsgModel mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -391,12 +300,9 @@ public class TxMsgSqlStore {
             model.setMsgKey(rs.getString("msg_key"));
             model.setContent(rs.getString("content"));
             model.setTopic(rs.getString("topic"));
-            model.setFeedbackTopic(rs.getString("feedback_topic"));
             model.setStatus(rs.getInt("status"));
             model.setCreateTime(rs.getLong("create_time"));
             model.setUpdateTime(rs.getLong("update_time"));
-            model.setProcessTime(rs.getLong("process_time"));
-            model.setErrorMsg(rs.getString("error_msg"));
             return model;
         }
     }

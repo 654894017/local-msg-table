@@ -1,7 +1,8 @@
-package com.damon.localmsgtx.client.impl;
+package com.damon.localmsgtx.client;
 
-import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.config.TxMsgKafkaConfig;
+import com.damon.localmsgtx.exception.TxMsgDuplicateKeyException;
+import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.handler.TxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
@@ -24,15 +25,11 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
 
-    private final boolean isEnableFeedbackMsgConsumer;
-
-
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
         this.txMsgSqlStore = config.getTxMsgSqlStore();
         this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
-        this.isEnableFeedbackMsgConsumer = config.isEnableFeedbackMsgConsumer();
     }
 
     /**
@@ -44,7 +41,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * @return Message ID
      */
     @Override
-    public Long sendTxMsg(String msgKey, String content) {
+    public Long sendTxMsg(String msgKey, String content) throws TxMsgDuplicateKeyException, TxMsgException {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
@@ -112,7 +109,6 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     public void cleanExpiredTxMsg(Long expireTime) {
         Assert.notNull(expireTime, "Expiration timestamp cannot be null");
         logger.info("Starting to clean up expired messages, expiration time: {}ms", expireTime);
-        TxMsgStatusEnum statusEnum = isEnableFeedbackMsgConsumer ? TxMsgStatusEnum.CONSUMER_SUCCESS : TxMsgStatusEnum.SENT;
-        txMsgHandler.deleteExpiredSentMessages(expireTime, statusEnum);
+        txMsgHandler.deleteExpiredSentMessages(expireTime, TxMsgStatusEnum.SENT);
     }
 }

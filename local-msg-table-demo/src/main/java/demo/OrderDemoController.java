@@ -16,9 +16,9 @@ public class OrderDemoController {
      * 创建订单并发送事务消息
      */
     @PostMapping("/orders")
-    public String createOrder(@RequestParam String orderId,
-                              @RequestParam String product,
-                              @RequestParam int quantity) {
+    public String createOrder(@RequestParam("orderId") String orderId,
+                              @RequestParam("product") String product,
+                              @RequestParam("quantity") int quantity) {
         try {
             orderService.createOrder(orderId, product, quantity);
             return "Order created successfully with transactional message sent";

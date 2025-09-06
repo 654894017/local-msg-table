@@ -1,4 +1,4 @@
-package com.damon.localmsgtx;
+package com.damon.localmsgtx.exception;
 
 public class TxMsgException extends RuntimeException {
 
