@@ -82,10 +82,10 @@ public class KafkaTxMsgClient implements ITxMsgClient {
             @Override
             public void afterCommit() {
                 logger.debug("Transaction committed, preparing to send message, msgId: {}", txMsg.getId());
-                if (!isAsyncSendMsg) {
-                    txMsgHandler.sendMsg(txMsg);
-                } else {
+                if (isAsyncSendMsg) {
                     asyncSendExecutor.submit(() -> txMsgHandler.sendMsg(txMsg));
+                } else {
+                    txMsgHandler.sendMsg(txMsg);
                 }
             }
 
