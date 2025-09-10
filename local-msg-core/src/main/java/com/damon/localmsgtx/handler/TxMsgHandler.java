@@ -12,8 +12,8 @@ import org.springframework.util.Assert;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +37,7 @@ public class TxMsgHandler {
     private final int deleteBatchSize;
 
     private final KafkaProducer<String, String> kafkaProducer;
+
     private final TxMsgSqlStore txMsgSqlStore;
 
     /**
@@ -114,6 +115,7 @@ public class TxMsgHandler {
     public void resendWaitingMessages() {
         int totalProcessed = 0;
         int currentFetchNum;
+        Long maxId = 0L;
 
         // Loop to fetch and process messages until no more messages or reaching the single task processing limit
         do {
@@ -124,7 +126,7 @@ public class TxMsgHandler {
             }
 
             // Fetch pending messages
-            List<TxMsgModel> waitingMessages = txMsgSqlStore.getWaitingMessages(fetchLimit);
+            List<TxMsgModel> waitingMessages = txMsgSqlStore.getWaitingMessages(fetchLimit, maxId);
             currentFetchNum = waitingMessages.size();
             totalProcessed += currentFetchNum;
 
@@ -137,6 +139,8 @@ public class TxMsgHandler {
 
             // Batch send messages
             batchSendMsgs(waitingMessages);
+
+            maxId = waitingMessages.get(currentFetchNum - 1).getId();
 
         } while (currentFetchNum == fetchLimit); // If this fetch is full, there may be more messages
 
@@ -201,12 +205,10 @@ public class TxMsgHandler {
                     logger.info("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
                             model.getId(), metadata.topic(), metadata.partition(), metadata.offset());
                     successMsgIds.add(model.getId());
-                } catch (InterruptedException | ExecutionException e) {
+                } catch (Exception e) {
                     logger.error("Message sending execution exception [msgId: {}, topic: {}]", model.getId(), model.getTopic(), e);
-                    // Preserve interrupt status
-                    if (e instanceof InterruptedException) {
-                        Thread.currentThread().interrupt();
-                    }
+                    // If an exception occurs, send the message again.
+                    doSendMessage(model);
                 }
             }
 
@@ -220,6 +222,10 @@ public class TxMsgHandler {
             }
         } catch (Exception e) {
             logger.error("Batch message sending execution exception", e);
+            try {
+                TimeUnit.SECONDS.sleep(5);
+            } catch (InterruptedException ignore) {
+            }
         }
     }
 
