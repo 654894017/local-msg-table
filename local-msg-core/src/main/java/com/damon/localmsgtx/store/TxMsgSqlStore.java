@@ -32,7 +32,7 @@ public class TxMsgSqlStore {
             "VALUES (?, ?, ?, ?, ?, ?)";
     private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ?";
     private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
-            "FROM %s WHERE status = ? ORDER BY create_time ASC LIMIT ?";
+            "FROM %s WHERE id > ? AND status = ? ORDER BY id ASC LIMIT ?";
     private final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
     private final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
     private final String CREATE_TABLE_SQL = """
@@ -136,7 +136,10 @@ public class TxMsgSqlStore {
 
         try {
             jdbcTemplate.update(connection -> {
-                PreparedStatement ps = connection.prepareStatement(String.format(INSERT_TX_MSG_SQL, tableName), Statement.RETURN_GENERATED_KEYS);
+                PreparedStatement ps = connection.prepareStatement(
+                        String.format(INSERT_TX_MSG_SQL, tableName),
+                        Statement.RETURN_GENERATED_KEYS
+                );
                 ps.setString(1, msgKey);
                 ps.setString(2, content);
                 ps.setString(3, topic);
@@ -192,13 +195,13 @@ public class TxMsgSqlStore {
      * @param pageSize Page size
      * @return List of messages waiting to send
      */
-    public List<TxMsgModel> getWaitingMessages(int pageSize) {
+    public List<TxMsgModel> getWaitingMessages(int pageSize, Long maxId) {
         Assert.isTrue(pageSize > 0, "Page size must be greater than 0");
 
         try {
             return jdbcTemplate.query(
                     String.format(SELECT_WAITING_MSG_SQL, tableName),
-                    new Object[]{TxMsgStatusEnum.WAITING.getStatus(), pageSize},
+                    new Object[]{maxId, TxMsgStatusEnum.WAITING.getStatus(), pageSize},
                     new TxMsgRowMapper()
             );
         } catch (Exception e) {
