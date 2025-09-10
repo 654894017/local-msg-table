@@ -13,6 +13,7 @@ import org.springframework.transaction.support.TransactionSynchronizationAdapter
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
 
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -22,7 +23,7 @@ import java.util.concurrent.ExecutorService;
 public class KafkaTxMsgClient implements ITxMsgClient {
 
     protected static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgClient.class);
-
+    private static final int MAX_MESSAGE_SIZE = 1048576;
     private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
     private final boolean isAsyncSendMsg;
@@ -41,6 +42,9 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * Send transactional message
      * The message will be stored in the database first, and sent to Kafka after transaction commits
      *
+     * Single message size limit: 1MB (Kafka default limit)
+     * If message size exceeds this limit, a TxMsgException will be thrown
+     *
      * @param msgKey  Message key (non-null)
      * @param content Message content (non-null)
      * @return Message ID
@@ -50,7 +54,12 @@ public class KafkaTxMsgClient implements ITxMsgClient {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
-
+        // 检查消息大小是否超过 Kafka 默认限制
+        int messageSize = content.getBytes(StandardCharsets.UTF_8).length;
+        if (messageSize > MAX_MESSAGE_SIZE) {
+            logger.warn("Message size {} bytes exceeds Kafka default limit {} bytes", messageSize, MAX_MESSAGE_SIZE);
+            throw new TxMsgException("Message size exceeds Kafka default limit of 1MB");
+        }
         TxMsgModel txMsg = storeTxMsg(content, msgKey);
         registerTransactionCallback(txMsg);
         return txMsg.getId();
