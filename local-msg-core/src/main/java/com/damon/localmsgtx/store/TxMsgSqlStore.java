@@ -30,7 +30,7 @@ public class TxMsgSqlStore {
     // SQL语句常量
     private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, create_time, update_time ) " +
             "VALUES (?, ?, ?, ?, ?, ?)";
-    private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ?";
+    private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ? AND status = ?";
     private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
             "FROM %s WHERE id > ? AND status = ? ORDER BY id ASC LIMIT ?";
     private final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
@@ -175,12 +175,13 @@ public class TxMsgSqlStore {
                     String.format(UPDATE_SEND_MSG_SQL, tableName),
                     TxMsgStatusEnum.SENT.getStatus(),
                     System.currentTimeMillis(),
-                    txMsgModel.getId()
+                    txMsgModel.getId(),
+                    TxMsgStatusEnum.WAITING.getStatus()
             );
             if (rows > 0) {
                 logger.debug("Message status updated to sent, id: {}", txMsgModel.getId());
             } else {
-                logger.warn("Failed to update message status, corresponding record not found, id: {}", txMsgModel.getId());
+                logger.warn("Failed to update message status, corresponding message not found or message has been sent, id: {}", txMsgModel.getId());
             }
             return rows;
         } catch (Exception e) {
@@ -224,7 +225,10 @@ public class TxMsgSqlStore {
             int totalDeleted = 0;
             while (true) {
                 int deleted = jdbcTemplate.update(
-                        String.format(DELETE_EXPIRED_SENDED_MSG_SQL, tableName), statusEnum.getStatus(), expireTime, batchSize
+                        String.format(DELETE_EXPIRED_SENDED_MSG_SQL, tableName),
+                        statusEnum.getStatus(),
+                        expireTime,
+                        batchSize
                 );
                 if (deleted <= 0) {
                     break;
@@ -254,43 +258,6 @@ public class TxMsgSqlStore {
         return model;
     }
 
-    public int batchUpdateSendMsg(List<Long> successMsgIds) {
-        Assert.notNull(successMsgIds, "Message ID list cannot be null");
-        try {
-            // Build batch update SQL, use IN clause to update status of multiple IDs
-            StringBuilder sqlBuilder = new StringBuilder();
-            sqlBuilder.append("UPDATE ").append(tableName)
-                    .append(" SET status = ?, update_time = ?")
-                    .append(" WHERE id IN (");
-
-            // Add placeholders for each ID
-            for (int i = 0; i < successMsgIds.size(); i++) {
-                sqlBuilder.append("?");
-                if (i < successMsgIds.size() - 1) {
-                    sqlBuilder.append(",");
-                }
-            }
-            sqlBuilder.append(")");
-
-            String sql = sqlBuilder.toString();
-
-            // Prepare parameter array
-            Object[] params = new Object[2 + successMsgIds.size()];
-            params[0] = TxMsgStatusEnum.SENT.getStatus();
-            params[1] = System.currentTimeMillis();
-
-            for (int i = 0; i < successMsgIds.size(); i++) {
-                params[2 + i] = successMsgIds.get(i);
-            }
-
-            int updatedRows = jdbcTemplate.update(sql, params);
-            logger.debug("Batch update of message status successful, updated records: {}, message ID list: {}", updatedRows, successMsgIds);
-            return updatedRows;
-        } catch (Exception e) {
-            logger.error("Exception occurred during batch update of message status, message ID list: {}", successMsgIds, e);
-            throw new TxMsgException("Exception occurred during batch update of message status", e);
-        }
-    }
 
     public static class TxMsgRowMapper implements RowMapper<TxMsgModel> {
         @Override

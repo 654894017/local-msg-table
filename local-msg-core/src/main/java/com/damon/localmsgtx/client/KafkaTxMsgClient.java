@@ -41,7 +41,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
     /**
      * Send transactional message
      * The message will be stored in the database first, and sent to Kafka after transaction commits
-     *
+     * <p>
      * Single message size limit: 1MB (Kafka default limit)
      * If message size exceeds this limit, a TxMsgException will be thrown
      *
@@ -113,7 +113,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * Resend all unsent messages (compensation mechanism)
      */
     @Override
-    public void resendFailedTxMsg() {
+    public void resendWaitingTxMsg() {
         logger.info("Starting message resend task");
         txMsgHandler.resendWaitingMessages();
     }

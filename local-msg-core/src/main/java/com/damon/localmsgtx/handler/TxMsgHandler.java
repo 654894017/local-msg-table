@@ -10,11 +10,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Collectors;
 
 /**
  * Transactional message handler
@@ -93,20 +90,9 @@ public class TxMsgHandler {
         Assert.notNull(txMsgModel, "Transactional message model cannot be null");
         Assert.hasText(txMsgModel.getTopic(), "Message topic cannot be empty");
         Assert.hasText(txMsgModel.getContent(), "Message content cannot be empty");
-
         doSendMessage(txMsgModel);
     }
 
-    /**
-     * Batch send transactional messages to Kafka
-     *
-     * @param txMsgModels List of transactional message models (cannot be null and cannot contain null elements)
-     */
-    public void batchSendMsgs(List<TxMsgModel> txMsgModels) {
-        Assert.notNull(txMsgModels, "Transactional message model list cannot be null");
-        Assert.noNullElements(txMsgModels.toArray(), "Transactional message model list cannot contain null elements");
-        doBatchSendMessages(txMsgModels);
-    }
 
     /**
      * Resend all messages in "waiting to send" status
@@ -138,7 +124,7 @@ public class TxMsgHandler {
             logger.info("Starting to process batch messages, count: {}, total processed: {}", currentFetchNum, totalProcessed);
 
             // Batch send messages
-            batchSendMsgs(waitingMessages);
+            doBatchSendMessages(waitingMessages);
 
             maxId = waitingMessages.get(currentFetchNum - 1).getId();
 
@@ -187,44 +173,15 @@ public class TxMsgHandler {
      * Actually execute batch message sending logic
      */
     private void doBatchSendMessages(List<TxMsgModel> txMsgModels) {
-        try {
-            // Batch send messages and collect results
-            List<Future<RecordMetadata>> futures = txMsgModels.stream()
-                    .map(model -> {
-                        ProducerRecord<String, String> record =
-                                new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
-                        return kafkaProducer.send(record);
-                    }).collect(Collectors.toList());
-
-            // Process sending results and collect successful message IDs
-            List<Long> successMsgIds = new ArrayList<>();
-            for (int i = 0; i < futures.size(); i++) {
-                TxMsgModel model = txMsgModels.get(i);
-                try {
-                    RecordMetadata metadata = futures.get(i).get();
-                    logger.info("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
-                            model.getId(), metadata.topic(), metadata.partition(), metadata.offset());
-                    successMsgIds.add(model.getId());
-                } catch (Exception e) {
-                    logger.error("Message sending execution exception [msgId: {}, topic: {}]", model.getId(), model.getTopic(), e);
-                    // If an exception occurs, send the message again.
-                    doSendMessage(model);
-                }
-            }
-
-            // Batch update status of successfully sent messages
-            if (!successMsgIds.isEmpty()) {
-                int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
-                logger.info("Batch message status update completed, should update: {}, actually updated: {}", successMsgIds.size(), updateRows);
-                if (updateRows != successMsgIds.size()) {
-                    logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}", successMsgIds.size(), updateRows);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Batch message sending execution exception", e);
+        for (TxMsgModel model : txMsgModels) {
             try {
-                TimeUnit.SECONDS.sleep(5);
-            } catch (InterruptedException ignore) {
+                doSendMessage(model);
+            } catch (Exception e) {
+                logger.error("message sending execution exception", e);
+                try {
+                    TimeUnit.SECONDS.sleep(5);
+                } catch (InterruptedException ignore) {
+                }
             }
         }
     }

@@ -24,7 +24,7 @@ public class StrUtil {
                 char[] padding = new char[pads];
                 char[] padChars = padStr.toCharArray();
 
-                for(int i = 0; i < pads; ++i) {
+                for (int i = 0; i < pads; ++i) {
                     padding[i] = padChars[i % padLen];
                 }
 

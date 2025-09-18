@@ -32,8 +32,8 @@ public class OrderController {
      * 手动触发重发失败的消息
      */
     @PostMapping("/resend")
-    public String resendFailedMessages() {
-        txMsgClient.resendFailedTxMsg();
+    public String resendWaitingTxMsg() {
+        txMsgClient.resendWaitingTxMsg();
         return "Resend task triggered";
     }
 

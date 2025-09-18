@@ -17,7 +17,15 @@ public interface ITxMsgClient {
      */
     Long sendTxMsg(String msgKey, String content) throws TxMsgDuplicateKeyException, TxMsgException;
 
-    void resendFailedTxMsg();
+    /**
+     * resend waiting transactional messages
+     */
+    void resendWaitingTxMsg();
 
+    /**
+     * clean expired messages
+     *
+     * @param expireTime Expiration timestamp (milliseconds)
+     */
     void cleanExpiredTxMsg(Long expireTime);
 }
