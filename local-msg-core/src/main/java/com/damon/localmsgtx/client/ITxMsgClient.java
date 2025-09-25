@@ -18,9 +18,11 @@ public interface ITxMsgClient {
     Long sendTxMsg(String msgKey, String content) throws TxMsgDuplicateKeyException, TxMsgException;
 
     /**
-     * resend waiting transactional messages
+     * resend all unsent messages
+     *
+     * @param shardTailNumber
      */
-    void resendWaitingTxMsg();
+    void resendWaitingTxMsg(String shardTailNumber);
 
     /**
      * clean expired messages

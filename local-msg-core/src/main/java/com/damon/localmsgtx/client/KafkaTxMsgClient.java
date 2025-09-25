@@ -6,7 +6,6 @@ import com.damon.localmsgtx.handler.TxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
-import com.damon.localmsgtx.utils.ShardTailNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -114,12 +113,9 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * Resend all unsent messages (compensation mechanism)
      */
     @Override
-    public void resendWaitingTxMsg() {
+    public void resendWaitingTxMsg(String shardTailNumber) {
         logger.info("Starting message resend task");
-        ShardTailNumber shardTailNumber = new ShardTailNumber(1, 0, 1);
-        shardTailNumber.generateTailNumbers().forEach(
-                tailNumber -> txMsgHandler.resendWaitingMessages(tailNumber)
-        );
+        txMsgHandler.resendWaitingMessages(shardTailNumber);
     }
 
     /**

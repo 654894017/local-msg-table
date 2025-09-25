@@ -1,6 +1,7 @@
 package com.damon.order.demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
+import com.damon.localmsgtx.utils.ShardTailNumber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
@@ -33,7 +34,10 @@ public class OrderController {
      */
     @PostMapping("/resend")
     public String resendWaitingTxMsg() {
-        txMsgClient.resendWaitingTxMsg();
+        ShardTailNumber shardTailNumber = new ShardTailNumber(1, 0, 1);
+        shardTailNumber.generateTailNumbers().forEach(
+                tailNumber -> txMsgClient.resendWaitingTxMsg(tailNumber)
+        );
         return "Resend task triggered";
     }
 
