@@ -4,6 +4,7 @@ import com.damon.localmsgtx.exception.TxMsgDuplicateKeyException;
 import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
+import com.damon.localmsgtx.utils.RandomNumber;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DuplicateKeyException;
@@ -28,11 +29,11 @@ public class TxMsgSqlStore {
 
     private final Logger logger = LoggerFactory.getLogger(TxMsgSqlStore.class);
     // SQL语句常量
-    private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, create_time, update_time ) " +
-            "VALUES (?, ?, ?, ?, ?, ?)";
+    private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, random_factor, create_time, update_time ) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?)";
     private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ? AND status = ?";
-    private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, create_time, update_time " +
-            "FROM %s WHERE id > ? AND status = ? ORDER BY id ASC LIMIT ?";
+    private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, random_factor, create_time, update_time " +
+            "FROM %s WHERE id > ? AND status = ? AND random_factor LIKE ? ORDER BY id ASC LIMIT ?";
     private final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
     private final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
     private final String CREATE_TABLE_SQL = """
@@ -42,12 +43,14 @@ public class TxMsgSqlStore {
               `topic` varchar(255) NOT NULL COMMENT 'Kafka消息主题',
               `msg_key` varchar(128) NOT NULL COMMENT '消息唯一标识（用于幂等性处理）',
               `status` tinyint NOT NULL COMMENT '消息状态：0-等待发送，1-已发送',
+              `random_factor` varchar(10) NOT NULL COMMENT '随机因子',
               `create_time` bigint NOT NULL COMMENT '创建时间（毫秒时间戳）',
               `update_time` bigint NOT NULL COMMENT '更新时间（毫秒时间戳）',
               PRIMARY KEY (`id`),
-              UNIQUE KEY `uk_msg_key` (`msg_key`) USING BTREE COMMENT '用于根据msgKey查询消息（可选，根据业务需求添加）',
-              KEY `idx_status_create_time` (`status`,`create_time`) COMMENT '用于查询等待发送的消息和清理过期消息'
-            ) ENGINE=InnoDB AUTO_INCREMENT=13 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='事务消息存储表（确保消息发送与本地事务一致性）';
+              UNIQUE KEY `uk_msgkey` (`msg_key`) USING BTREE COMMENT '用于根据msgKey查询消息（可选，根据业务需求添加）',
+              KEY `idx_randomfactor` (`random_factor`) USING BTREE COMMENT '用于分片任务消息查询',
+              KEY `idx_status_createtime` (`status`,`create_time`) USING BTREE COMMENT '用于查询等待发送的消息和清理过期消息'
+            ) ENGINE=InnoDB AUTO_INCREMENT=3387 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='事务消息存储表（确保消息发送与本地事务一致性）';
             """;
     /**
      * Database table name (default: mq_messages)
@@ -55,6 +58,7 @@ public class TxMsgSqlStore {
     private final String tableName;
     private final JdbcTemplate jdbcTemplate;
     private final String topic;
+    private final RandomNumber randomNumber;
 
     /**
      * Constructor (supports custom table name)
@@ -62,13 +66,14 @@ public class TxMsgSqlStore {
      * @param dataSource Data source
      * @param tableName  Message storage table name
      */
-    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic) {
+    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic, int randomFactorLength) {
         Assert.notNull(dataSource, "Data source cannot be null");
         Assert.hasText(topic, "topic cannot be empty");
         Assert.hasText(tableName, "Table name cannot be empty");
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.tableName = tableName;
         this.topic = topic;
+        this.randomNumber = new RandomNumber(randomFactorLength);
         initializeTable();
     }
 
@@ -133,7 +138,7 @@ public class TxMsgSqlStore {
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
         long currentTime = System.currentTimeMillis();
-
+        String randomFactor = randomNumber.generate();
         try {
             jdbcTemplate.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement(
@@ -144,13 +149,14 @@ public class TxMsgSqlStore {
                 ps.setString(2, content);
                 ps.setString(3, topic);
                 ps.setInt(4, TxMsgStatusEnum.WAITING.getStatus());
-                ps.setLong(5, currentTime);
+                ps.setString(5, randomFactor);
                 ps.setLong(6, currentTime);
+                ps.setLong(7, currentTime);
                 return ps;
             }, keyHolder);
             Long id = keyHolder.getKey().longValue();
             logger.debug("Transactional message inserted successfully, id: {}, topic: {}, msgKey: {}", id, topic, msgKey);
-            return buildTxMsgModel(id, content, topic, msgKey, TxMsgStatusEnum.WAITING.getStatus(), currentTime);
+            return buildTxMsgModel(id, content, topic, msgKey, TxMsgStatusEnum.WAITING.getStatus(), randomFactor, currentTime);
         } catch (DuplicateKeyException e) {
             logger.warn("Duplicate key exception occurred while inserting transactional message, topic: {}, msgKey: {}", topic, msgKey, e);
             throw new TxMsgDuplicateKeyException("Duplicate key exception occurred while inserting transactional message", e);
@@ -196,13 +202,13 @@ public class TxMsgSqlStore {
      * @param pageSize Page size
      * @return List of messages waiting to send
      */
-    public List<TxMsgModel> getWaitingMessages(int pageSize, Long maxId) {
+    public List<TxMsgModel> getWaitingMessages(int pageSize, Long maxId, String shardTailNumber) {
         Assert.isTrue(pageSize > 0, "Page size must be greater than 0");
 
         try {
             return jdbcTemplate.query(
                     String.format(SELECT_WAITING_MSG_SQL, tableName),
-                    new Object[]{maxId, TxMsgStatusEnum.WAITING.getStatus(), pageSize},
+                    new Object[]{maxId, TxMsgStatusEnum.WAITING.getStatus(), shardTailNumber + "%", pageSize},
                     new TxMsgRowMapper()
             );
         } catch (Exception e) {
@@ -243,16 +249,55 @@ public class TxMsgSqlStore {
         }
     }
 
+    public int batchUpdateSendMsg(List<Long> successMsgIds) {
+        Assert.notNull(successMsgIds, "Message ID list cannot be null");
+        try {
+            // Build batch update SQL, use IN clause to update status of multiple IDs
+            StringBuilder sqlBuilder = new StringBuilder();
+            sqlBuilder.append("UPDATE ").append(tableName)
+                    .append(" SET status = ?, update_time = ?")
+                    .append(" WHERE id IN (");
+
+            // Add placeholders for each ID
+            for (int i = 0; i < successMsgIds.size(); i++) {
+                sqlBuilder.append("?");
+                if (i < successMsgIds.size() - 1) {
+                    sqlBuilder.append(",");
+                }
+            }
+            sqlBuilder.append(")");
+
+            String sql = sqlBuilder.toString();
+
+            // Prepare parameter array
+            Object[] params = new Object[2 + successMsgIds.size()];
+            params[0] = TxMsgStatusEnum.SENT.getStatus();
+            params[1] = System.currentTimeMillis();
+
+            for (int i = 0; i < successMsgIds.size(); i++) {
+                params[2 + i] = successMsgIds.get(i);
+            }
+
+            int updatedRows = jdbcTemplate.update(sql, params);
+            logger.debug("Batch update of message status successful, updated records: {}, message ID list: {}", updatedRows, successMsgIds);
+            return updatedRows;
+        } catch (Exception e) {
+            logger.error("Exception occurred during batch update of message status, message ID list: {}", successMsgIds, e);
+            throw new TxMsgException("Exception occurred during batch update of message status", e);
+        }
+    }
+
     /**
      * Build message model
      */
-    private TxMsgModel buildTxMsgModel(Long id, String content, String topic, String msgKey, int status, long createTime) {
+    private TxMsgModel buildTxMsgModel(Long id, String content, String topic, String msgKey, int status, String randomFactor, long createTime) {
         TxMsgModel model = new TxMsgModel();
         model.setId(id);
         model.setContent(content);
         model.setTopic(topic);
         model.setMsgKey(msgKey);
         model.setStatus(status);
+        model.setRandomFactor(randomFactor);
         model.setCreateTime(createTime);
         model.setUpdateTime(createTime);
         return model;
@@ -268,6 +313,7 @@ public class TxMsgSqlStore {
             model.setContent(rs.getString("content"));
             model.setTopic(rs.getString("topic"));
             model.setStatus(rs.getInt("status"));
+            model.setRandomFactor(rs.getString("random_factor"));
             model.setCreateTime(rs.getLong("create_time"));
             model.setUpdateTime(rs.getLong("update_time"));
             return model;

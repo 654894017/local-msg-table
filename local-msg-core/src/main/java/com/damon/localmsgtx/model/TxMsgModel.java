@@ -25,6 +25,7 @@ public class TxMsgModel {
      */
     private int status;
 
+    private String randomFactor;
     /**
      * 创建时间
      */
@@ -88,5 +89,13 @@ public class TxMsgModel {
 
     public void setUpdateTime(Long updateTime) {
         this.updateTime = updateTime;
+    }
+
+    public String getRandomFactor() {
+        return randomFactor;
+    }
+
+    public void setRandomFactor(String randomFactor) {
+        this.randomFactor = randomFactor;
     }
 }

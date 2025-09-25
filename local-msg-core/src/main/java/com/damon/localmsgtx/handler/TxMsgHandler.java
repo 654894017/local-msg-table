@@ -10,7 +10,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
+import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -98,7 +100,7 @@ public class TxMsgHandler {
      * Resend all messages in "waiting to send" status
      * Used for compensation mechanism to ensure unsent messages are retried
      */
-    public void resendWaitingMessages() {
+    public void resendWaitingMessages(String shardTailNumber) {
         int totalProcessed = 0;
         int currentFetchNum;
         Long maxId = 0L;
@@ -112,7 +114,7 @@ public class TxMsgHandler {
             }
 
             // Fetch pending messages
-            List<TxMsgModel> waitingMessages = txMsgSqlStore.getWaitingMessages(fetchLimit, maxId);
+            List<TxMsgModel> waitingMessages = txMsgSqlStore.getWaitingMessages(fetchLimit, maxId, shardTailNumber);
             currentFetchNum = waitingMessages.size();
             totalProcessed += currentFetchNum;
 
@@ -121,7 +123,7 @@ public class TxMsgHandler {
                 break;
             }
 
-            logger.info("Starting to process batch messages, count: {}, total processed: {}", currentFetchNum, totalProcessed);
+            logger.info("Starting to process batch messages, count: {}, total processed: {}, shardTailNumber: {}", currentFetchNum, totalProcessed, shardTailNumber);
 
             // Batch send messages
             doBatchSendMessages(waitingMessages);
@@ -173,17 +175,43 @@ public class TxMsgHandler {
      * Actually execute batch message sending logic
      */
     private void doBatchSendMessages(List<TxMsgModel> txMsgModels) {
-        for (TxMsgModel model : txMsgModels) {
-            try {
-                doSendMessage(model);
-            } catch (Exception e) {
-                logger.error("message sending execution exception", e);
+        try {
+            // Batch send messages and collect results
+            List<Future<RecordMetadata>> futures = txMsgModels.stream()
+                    .map(model -> {
+                        ProducerRecord<String, String> record =
+                                new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
+                        return kafkaProducer.send(record);
+                    }).toList();
+
+            // Process sending results and collect successful message IDs
+            List<Long> successMsgIds = new ArrayList<>();
+            for (int i = 0; i < futures.size(); i++) {
+                TxMsgModel model = txMsgModels.get(i);
                 try {
-                    TimeUnit.SECONDS.sleep(5);
-                } catch (InterruptedException ignore) {
+                    RecordMetadata metadata = futures.get(i).get();
+                    logger.info("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
+                            model.getId(), metadata.topic(), metadata.partition(), metadata.offset());
+                    successMsgIds.add(model.getId());
+                } catch (Exception e) {
+                    logger.error("Message sending execution exception [msgId: {}, topic: {}]", model.getId(), model.getTopic(), e);
                 }
+            }
+
+            // Batch update status of successfully sent messages
+            if (!successMsgIds.isEmpty()) {
+                int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
+                logger.info("Batch message status update completed, should update: {}, actually updated: {}", successMsgIds.size(), updateRows);
+                if (updateRows != successMsgIds.size()) {
+                    logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}", successMsgIds.size(), updateRows);
+                }
+            }
+        } catch (Exception e) {
+            logger.error("Batch message sending execution exception", e);
+            try {
+                TimeUnit.SECONDS.sleep(5);
+            } catch (InterruptedException ignore) {
             }
         }
     }
-
 }

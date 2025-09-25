@@ -14,6 +14,8 @@ public class TxMsgKafkaConfig {
 
     private String topic;
 
+    private int randomFactorLength = 6;
+
     private boolean asyncSendMsg;
 
     private ExecutorService asyncSendExecutor;
@@ -56,8 +58,16 @@ public class TxMsgKafkaConfig {
         return asyncSendMsg;
     }
 
+    public int getRandomFactorLength() {
+        return randomFactorLength;
+    }
+
+    public void setRandomFactorLength(int randomFactorLength) {
+        this.randomFactorLength = randomFactorLength;
+    }
+
     public TxMsgSqlStore getTxMsgSqlStore() {
-        return new TxMsgSqlStore(dataSource, txMsgTableName, topic);
+        return new TxMsgSqlStore(dataSource, txMsgTableName, topic, randomFactorLength);
     }
 
     public ExecutorService getAsyncSendExecutor() {

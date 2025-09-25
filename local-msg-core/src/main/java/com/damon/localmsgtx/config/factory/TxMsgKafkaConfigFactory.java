@@ -18,6 +18,7 @@ public class TxMsgKafkaConfigFactory {
         config.setDataSource(dataSource);
         config.setTopic(topic);
         config.setKafkaProducer(producer);
+        config.setRandomFactorLength(6);
         config.setTxMsgTableName(txMsgTableName);
         config.setAsyncSendExecutor(asyncSendExecutor);
         return config;
