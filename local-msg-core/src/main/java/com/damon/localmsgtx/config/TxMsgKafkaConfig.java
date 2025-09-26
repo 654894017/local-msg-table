@@ -16,8 +16,6 @@ public class TxMsgKafkaConfig {
 
     private int randomFactorLength = 6;
 
-    private boolean asyncSendMsg;
-
     private ExecutorService asyncSendExecutor;
 
     private KafkaProducer<String, String> kafkaProducer;
@@ -54,10 +52,6 @@ public class TxMsgKafkaConfig {
         this.topic = topic;
     }
 
-    public boolean isAsyncSendMsg() {
-        return asyncSendMsg;
-    }
-
     public int getRandomFactorLength() {
         return randomFactorLength;
     }
@@ -76,6 +70,5 @@ public class TxMsgKafkaConfig {
 
     public void setAsyncSendExecutor(ExecutorService asyncSendExecutor) {
         this.asyncSendExecutor = asyncSendExecutor;
-        this.asyncSendMsg = true;
     }
 }
