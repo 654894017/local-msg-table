@@ -3,7 +3,7 @@ package com.damon.localmsgtx.config.factory;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public class ThreadPoolFactory {
+public class TxMsgSenderThreadPoolFactory {
     /**
      * base on jdk21 virtual thread pool
      *

@@ -10,7 +10,7 @@ public class TxMsgKafkaConfigFactory {
 
     public static TxMsgKafkaConfig simpleConfig(String kafkaServer, String topic, DataSource dataSource, String txMsgTableName) {
 
-        ExecutorService asyncSendExecutor = ThreadPoolFactory.simpleThreadPool();
+        ExecutorService asyncSendExecutor = TxMsgSenderThreadPoolFactory.simpleThreadPool();
 
         KafkaProducer<String, String> producer = KafkaProducerFactory.simpleProducer(kafkaServer);
 
