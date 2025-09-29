@@ -45,7 +45,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
      * @return Message ID
      */
     @Override
-    public Long sendTxMsg(String msgKey, String content) throws IllegalArgumentException, TxMsgException {
+    public Long sendTxMsg(String msgKey, String content) {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
