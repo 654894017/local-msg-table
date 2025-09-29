@@ -5,7 +5,6 @@ import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.handler.TxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
-import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -24,15 +23,13 @@ public class KafkaTxMsgClient implements ITxMsgClient {
 
     protected static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgClient.class);
     private static final int MAX_MESSAGE_SIZE = 1048576;
-    private final TxMsgSqlStore txMsgSqlStore;
     private final TxMsgHandler txMsgHandler;
     private final ExecutorService asyncSendExecutor;
 
     public KafkaTxMsgClient(TxMsgKafkaConfig config) {
         Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
-        this.txMsgSqlStore = config.getTxMsgSqlStore();
-        this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), this.txMsgSqlStore);
+        this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), config.getTxMsgSqlStore());
         this.asyncSendExecutor = config.getAsyncSendExecutor();
     }
 
@@ -72,8 +69,7 @@ public class KafkaTxMsgClient implements ITxMsgClient {
             logger.error("Current operation is not within an active transaction, message sending consistency cannot be guaranteed");
         }
 
-
-        TxMsgModel txMsg = txMsgSqlStore.insertTxMsg(content, msgKey);
+        TxMsgModel txMsg = txMsgHandler.saveMsg(content, msgKey);
         logger.debug("Transactional message stored in database, msgId: {}", txMsg.getId());
         return txMsg;
 

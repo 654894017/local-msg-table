@@ -83,6 +83,10 @@ public class TxMsgHandler {
         this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 50);
     }
 
+    public TxMsgModel saveMsg(String content, String msgKey) {
+        return txMsgSqlStore.insertTxMsg(content, msgKey);
+    }
+
     /**
      * Send a single transactional message to Kafka
      *
