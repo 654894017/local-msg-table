@@ -2,6 +2,7 @@ package com.damon.localmsgtx.store;
 
 import com.damon.localmsgtx.exception.TxMsgDuplicateKeyException;
 import com.damon.localmsgtx.exception.TxMsgException;
+import com.damon.localmsgtx.exception.TxMsgStoreException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
 import com.damon.localmsgtx.utils.RandomNumber;
@@ -162,7 +163,7 @@ public class TxMsgSqlStore {
             throw new TxMsgDuplicateKeyException("Duplicate key exception occurred while inserting transactional message", e);
         } catch (Exception e) {
             logger.error("Exception occurred while inserting transactional message, topic: {}, msgKey: {}", topic, msgKey, e);
-            throw new TxMsgException("Exception occurred while inserting transactional message", e);
+            throw new TxMsgStoreException("Exception occurred while inserting transactional message", e);
         }
     }
 
@@ -192,7 +193,7 @@ public class TxMsgSqlStore {
             return rows;
         } catch (Exception e) {
             logger.error("Exception occurred while updating message status, id: {}", txMsgModel.getId(), e);
-            throw new TxMsgException("Exception occurred while updating message status", e);
+            throw new TxMsgStoreException("Exception occurred while updating message status", e);
         }
     }
 
@@ -213,7 +214,7 @@ public class TxMsgSqlStore {
             );
         } catch (Exception e) {
             logger.error("Exception occurred while querying messages waiting to send, pageSize: {}", pageSize, e);
-            throw new TxMsgException("Exception occurred while querying messages waiting to send", e);
+            throw new TxMsgStoreException("Exception occurred while querying messages waiting to send", e);
         }
     }
 
@@ -245,7 +246,7 @@ public class TxMsgSqlStore {
             logger.info("Expired message cleanup completed, total deleted: {}", totalDeleted);
         } catch (Exception e) {
             logger.error("Exception occurred while deleting expired messages, expireTime: {}", expireTime, e);
-            throw new TxMsgException("Exception occurred while deleting expired messages", e);
+            throw new TxMsgStoreException("Exception occurred while deleting expired messages", e);
         }
     }
 
@@ -283,7 +284,7 @@ public class TxMsgSqlStore {
             return updatedRows;
         } catch (Exception e) {
             logger.error("Exception occurred during batch update of message status, message ID list: {}", successMsgIds, e);
-            throw new TxMsgException("Exception occurred during batch update of message status", e);
+            throw new TxMsgStoreException("Exception occurred during batch update of message status", e);
         }
     }
 
