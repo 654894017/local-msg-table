@@ -13,7 +13,7 @@ public interface ITxMsgClient {
      * @param content Message content (must not be null or empty)
      * @return Message ID
      * @throws TxMsgDuplicateKeyException if the message key already exists
-     * @throws TxMsgStoreException        if other exceptions occur during message processing
+     * @throws TxMsgStoreException        if the message cannot be stored
      * @throws IllegalArgumentException   if the message key or content is null or empty
      */
     Long sendTxMsg(String msgKey, String content) throws IllegalArgumentException, TxMsgDuplicateKeyException, TxMsgStoreException;
