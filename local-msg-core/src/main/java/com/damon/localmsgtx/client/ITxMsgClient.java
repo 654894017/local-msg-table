@@ -22,6 +22,7 @@ public interface ITxMsgClient {
      * resend all unsent messages
      *
      * @param shardTailNumber
+     * @throws TxMsgStoreException if the message cannot be queried
      */
     void resendWaitingTxMsg(String shardTailNumber) throws TxMsgStoreException;
 
@@ -29,6 +30,7 @@ public interface ITxMsgClient {
      * clean expired messages
      *
      * @param expireTime Expiration timestamp (milliseconds)
+     * @throws TxMsgStoreException if the message cannot be deleted
      */
     void cleanExpiredTxMsg(Long expireTime) throws TxMsgStoreException;
 }
