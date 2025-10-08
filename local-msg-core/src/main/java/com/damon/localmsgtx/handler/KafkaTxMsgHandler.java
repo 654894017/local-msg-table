@@ -1,7 +1,6 @@
 package com.damon.localmsgtx.handler;
 
 import com.damon.localmsgtx.model.TxMsgModel;
-import com.damon.localmsgtx.model.TxMsgStatusEnum;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -19,8 +18,8 @@ import java.util.concurrent.TimeUnit;
  * Transactional message handler
  * Responsible for message sending, retry sending, and cleaning up expired sent messages
  */
-public class TxMsgHandler {
-    private static final Logger logger = LoggerFactory.getLogger(TxMsgHandler.class);
+public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
+    private static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgHandler.class);
 
     /**
      * Maximum number of pending messages to fetch in a single request
@@ -30,14 +29,8 @@ public class TxMsgHandler {
      * Maximum number of messages to process in a single resend task (to prevent tasks from being too long)
      */
     private final int maxResendNumPerTask;
-    /**
-     * Batch size for deleting expired messages in a single operation
-     */
-    private final int deleteBatchSize;
 
     private final KafkaProducer<String, String> kafkaProducer;
-
-    private final TxMsgSqlStore txMsgSqlStore;
 
     /**
      * Full parameter constructor (recommended, supports custom configuration)
@@ -49,25 +42,22 @@ public class TxMsgHandler {
      * @param deleteBatchSize     Batch size for deletion
      * @param batchSendSize       Batch size for sending
      */
-    public TxMsgHandler(KafkaProducer<String, String> kafkaProducer,
-                        TxMsgSqlStore txMsgSqlStore,
-                        int fetchLimit,
-                        int maxResendNumPerTask,
-                        int deleteBatchSize,
-                        int batchSendSize) {
+    public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
+                             TxMsgSqlStore txMsgSqlStore,
+                             int fetchLimit,
+                             int maxResendNumPerTask,
+                             int deleteBatchSize,
+                             int batchSendSize) {
+        super(deleteBatchSize, txMsgSqlStore);
         // Parameter validation
         Assert.notNull(kafkaProducer, "KafkaProducer cannot be null");
-        Assert.notNull(txMsgSqlStore, "TxMsgSqlStore cannot be null");
         Assert.isTrue(fetchLimit > 0, "Fetch limit must be greater than 0");
         Assert.isTrue(maxResendNumPerTask > 0, "Maximum resend number per task must be greater than 0");
         Assert.isTrue(deleteBatchSize > 0, "Delete batch size must be greater than 0");
         Assert.isTrue(batchSendSize > 0, "Batch send size must be greater than 0");
-
         this.kafkaProducer = kafkaProducer;
-        this.txMsgSqlStore = txMsgSqlStore;
         this.fetchLimit = fetchLimit;
         this.maxResendNumPerTask = maxResendNumPerTask;
-        this.deleteBatchSize = deleteBatchSize;
     }
 
     /**
@@ -78,20 +68,18 @@ public class TxMsgHandler {
      * - Delete batch size of 200
      * - Batch send size of 50
      */
-    public TxMsgHandler(KafkaProducer<String, String> kafkaProducer,
-                        TxMsgSqlStore txMsgSqlStore) {
+    public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
+                             TxMsgSqlStore txMsgSqlStore) {
         this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 50);
     }
 
-    public TxMsgModel saveMsg(String content, String msgKey) {
-        return txMsgSqlStore.insertTxMsg(content, msgKey);
-    }
 
     /**
      * Send a single transactional message to Kafka
      *
      * @param txMsgModel Transactional message model (cannot be null)
      */
+    @Override
     public void sendMsg(TxMsgModel txMsgModel) {
         Assert.notNull(txMsgModel, "Transactional message model cannot be null");
         Assert.hasText(txMsgModel.getTopic(), "Message topic cannot be empty");
@@ -104,6 +92,7 @@ public class TxMsgHandler {
      * Resend all messages in "waiting to send" status
      * Used for compensation mechanism to ensure unsent messages are retried
      */
+    @Override
     public void resendWaitingMessages(String shardTailNumber) {
         int totalProcessed = 0;
         int currentFetchNum;
@@ -139,17 +128,6 @@ public class TxMsgHandler {
         logger.info("Resend task completed, total messages processed in this run: {}", totalProcessed);
     }
 
-    /**
-     * Delete expired sent messages
-     *
-     * @param expireTime Expiration timestamp (milliseconds), sent messages with timestamps less than or equal to this time will be deleted
-     */
-    public void deleteExpiredSentMessages(Long expireTime, TxMsgStatusEnum statusEnum) {
-        Assert.notNull(expireTime, "Expiration timestamp cannot be null");
-        logger.info("Starting to clean up expired sent messages, expiration time: {}ms", expireTime);
-        txMsgSqlStore.deleteExpiredSendedMsg(expireTime, deleteBatchSize, statusEnum);
-        logger.info("Cleanup of expired sent messages completed");
-    }
 
     /**
      * Actually execute single message sending logic

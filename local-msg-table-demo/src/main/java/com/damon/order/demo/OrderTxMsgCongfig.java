@@ -1,8 +1,8 @@
 package com.damon.order.demo;
 
+import com.damon.localmsgtx.client.DefaultTxMsgClient;
 import com.damon.localmsgtx.client.ITxMsgClient;
-import com.damon.localmsgtx.client.KafkaTxMsgClient;
-import com.damon.localmsgtx.config.TxMsgKafkaConfig;
+import com.damon.localmsgtx.config.TxMsgConfig;
 import com.damon.localmsgtx.config.factory.TxMsgKafkaConfigFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -17,10 +17,10 @@ public class OrderTxMsgCongfig {
 
     @Bean
     public ITxMsgClient txMsgClient(DataSource dataSource) {
-        TxMsgKafkaConfig config = TxMsgKafkaConfigFactory.simpleConfig(
+        TxMsgConfig config = TxMsgKafkaConfigFactory.simpleConfig(
                 KAFKA_SERVER, ORDER_TOPIC,
                 dataSource, "transactional_messages"
         );
-        return new KafkaTxMsgClient(config);
+        return new DefaultTxMsgClient(config);
     }
 }

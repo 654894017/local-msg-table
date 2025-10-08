@@ -1,8 +1,8 @@
 package com.damon.localmsgtx.client;
 
-import com.damon.localmsgtx.config.TxMsgKafkaConfig;
+import com.damon.localmsgtx.config.TxMsgConfig;
 import com.damon.localmsgtx.exception.TxMsgException;
-import com.damon.localmsgtx.handler.TxMsgHandler;
+import com.damon.localmsgtx.handler.AbstractTxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
 import org.slf4j.Logger;
@@ -19,17 +19,17 @@ import java.util.concurrent.ExecutorService;
  * Kafka transactional message client implementation
  * Ensuring eventual consistency between message sending and local transactions
  */
-public class KafkaTxMsgClient implements ITxMsgClient {
+public class DefaultTxMsgClient implements ITxMsgClient {
 
-    protected static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgClient.class);
+    protected static final Logger logger = LoggerFactory.getLogger(DefaultTxMsgClient.class);
     private static final int MAX_MESSAGE_SIZE = 1048576;
-    private final TxMsgHandler txMsgHandler;
+    private final AbstractTxMsgHandler txMsgHandler;
     private final ExecutorService asyncSendExecutor;
 
-    public KafkaTxMsgClient(TxMsgKafkaConfig config) {
-        Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
+    public DefaultTxMsgClient(TxMsgConfig config) {
+//        Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
         Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
-        this.txMsgHandler = new TxMsgHandler(config.getKafkaProducer(), config.getTxMsgSqlStore());
+        this.txMsgHandler = config.getTxMsgHandler();
         this.asyncSendExecutor = config.getAsyncSendExecutor();
     }
 
