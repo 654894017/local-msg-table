@@ -6,6 +6,11 @@ import java.util.concurrent.ExecutorService;
 
 public class TxMsgConfig {
 
+    public TxMsgConfig(ExecutorService asyncSendExecutor, AbstractTxMsgHandler txMsgHandler) {
+        this.asyncSendExecutor = asyncSendExecutor;
+        this.txMsgHandler = txMsgHandler;
+    }
+
     private ExecutorService asyncSendExecutor;
 
     private AbstractTxMsgHandler txMsgHandler;

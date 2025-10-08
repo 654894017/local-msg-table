@@ -11,16 +11,19 @@ import java.util.concurrent.ExecutorService;
 
 public class TxMsgKafkaConfigFactory {
 
+    private final static int RANMON_FACTOR_LENGTH = 6;
+
     public static TxMsgConfig simpleConfig(String kafkaServer, String topic, DataSource dataSource, String txMsgTableName) {
 
         ExecutorService asyncSendExecutor = TxMsgSenderThreadPoolFactory.simpleThreadPool();
+
         KafkaProducer<String, String> producer = KafkaProducerFactory.simpleProducer(kafkaServer);
-        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic, 6);
+
+        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic, RANMON_FACTOR_LENGTH);
+
         AbstractTxMsgHandler txMsgHandler = new KafkaTxMsgHandler(producer, txMsgSqlStore);
 
-        TxMsgConfig config = new TxMsgConfig();
-        config.setTxMsgHandler(txMsgHandler);
-        config.setAsyncSendExecutor(asyncSendExecutor);
-        return config;
+        return new TxMsgConfig(asyncSendExecutor, txMsgHandler);
+        
     }
 }

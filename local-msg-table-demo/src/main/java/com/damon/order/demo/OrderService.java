@@ -10,7 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class OrderDemoService {
+public class OrderService {
     private final JdbcTemplate jdbcTemplate;
     private final ITxMsgClient txMsgClient;
 

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.*;
 @RequiredArgsConstructor
 public class OrderController {
 
-    private final OrderDemoService orderDemoService;
+    private final OrderService orderService;
 
     private final ITxMsgClient txMsgClient;
 
@@ -22,7 +22,7 @@ public class OrderController {
                               @RequestParam("product") String product,
                               @RequestParam("quantity") int quantity) {
         try {
-            orderDemoService.createOrder(orderId, product, quantity);
+            orderService.createOrder(orderId, product, quantity);
             return "Order created successfully with transactional message sent";
         } catch (Exception e) {
             return "Failed to create order: " + e.getMessage();
@@ -36,7 +36,7 @@ public class OrderController {
     public String resendWaitingTxMsg() {
         ShardTailNumber shardTailNumber = new ShardTailNumber(1, 0, 1);
         shardTailNumber.generateTailNumbers().forEach(
-                tailNumber -> txMsgClient.resendWaitingTxMsg(tailNumber)
+                txMsgClient::resendWaitingTxMsg
         );
         return "Resend task triggered";
     }
