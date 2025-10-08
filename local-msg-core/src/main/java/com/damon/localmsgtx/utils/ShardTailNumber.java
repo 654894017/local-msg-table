@@ -31,13 +31,6 @@ public class ShardTailNumber {
         this.maxTailNumber = (int) Math.pow(10, tailLength) - 1;
     }
 
-    public static void main(String[] args) {
-        ShardTailNumber shardTailNumber = new ShardTailNumber(10,
-                9, 2);
-        List<String> tailNumbers = shardTailNumber.generateTailNumbers();
-        System.out.println(tailNumbers);
-
-    }
 
     /**
      * 生成当前分片的尾号列表
