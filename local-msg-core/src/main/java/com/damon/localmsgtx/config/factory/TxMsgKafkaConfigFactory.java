@@ -19,7 +19,6 @@ public class TxMsgKafkaConfigFactory {
         AbstractTxMsgHandler txMsgHandler = new KafkaTxMsgHandler(producer, txMsgSqlStore);
 
         TxMsgConfig config = new TxMsgConfig();
-        config.setTxMsgSqlStore(txMsgSqlStore);
         config.setTxMsgHandler(txMsgHandler);
         config.setAsyncSendExecutor(asyncSendExecutor);
         return config;

@@ -27,8 +27,8 @@ public class DefaultTxMsgClient implements ITxMsgClient {
     private final ExecutorService asyncSendExecutor;
 
     public DefaultTxMsgClient(TxMsgConfig config) {
-//        Assert.notNull(config.getKafkaProducer(), "KafkaProducer cannot be null");
-        Assert.notNull(config.getTxMsgSqlStore(), "DataSource cannot be null");
+        Assert.notNull(config.getAsyncSendExecutor(), "AsyncSendExecutor cannot be null");
+        Assert.notNull(config.getTxMsgHandler(), "TxMsgHandler cannot be null");
         this.txMsgHandler = config.getTxMsgHandler();
         this.asyncSendExecutor = config.getAsyncSendExecutor();
     }
