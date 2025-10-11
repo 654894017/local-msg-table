@@ -97,7 +97,7 @@ public abstract class AbstractTxMsgHandler {
             logger.info("Starting to process batch messages, count: {}, total processed: {}, shardTailNumber: {}", currentFetchNum, totalProcessed, shardTailNumber);
 
             // Batch send messages
-            batchSendMessages(waitingMessages);
+            doBatchSendMessages(waitingMessages, shardTailNumber);
 
             maxId = waitingMessages.get(currentFetchNum - 1).getId();
 
@@ -105,7 +105,14 @@ public abstract class AbstractTxMsgHandler {
         
         logger.info("Resend task completed, total messages processed in this run: {}", totalProcessed);
     }
-
+    
+    private void doBatchSendMessages(List<TxMsgModel> txMsgModels, String shardTailNumber) {
+        try {
+            batchSendMessages(txMsgModels);
+        } catch (Exception e) {
+            logger.error("Error while processing batch messages, shardTailNumber: {}", shardTailNumber, e);
+        }
+    }
 
     protected abstract void sendMessage(TxMsgModel txMsgModel);
 
