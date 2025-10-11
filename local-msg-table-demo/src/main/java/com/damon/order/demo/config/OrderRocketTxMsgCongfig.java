@@ -5,10 +5,11 @@ import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.config.TxMsgConfig;
 import com.damon.localmsgtx.config.factory.TxMsgRocketConfigFactory;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
-//@Configuration
+@Configuration
 public class OrderRocketTxMsgCongfig {
     public static final String ORDER_TOPIC = "order-events";
 

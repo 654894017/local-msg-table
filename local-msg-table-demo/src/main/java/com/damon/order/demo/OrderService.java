@@ -1,18 +1,21 @@
 package com.damon.order.demo;
 
 import com.damon.localmsgtx.client.ITxMsgClient;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 @Slf4j
 @Service
-@RequiredArgsConstructor
 public class OrderService {
-    private final JdbcTemplate jdbcTemplate;
-    private final ITxMsgClient txMsgClient;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+    @Autowired
+    @Qualifier("kafkaTxMsgClient")
+    private ITxMsgClient kafkaTxMsgClient;
 
     /**
      * 创建订单并发送事务消息
@@ -29,7 +32,7 @@ public class OrderService {
         String messageContent = String.format("{\"orderId\":\"%s\",\"product\":\"%s\",\"quantity\":%d}",
                 orderId, product, quantity);
 
-        Long msgId = txMsgClient.sendTxMsg(orderId, messageContent);
+        Long msgId = kafkaTxMsgClient.sendTxMsg(orderId, messageContent);
 
         log.info("Order created and transactional message registered, msgId: " + msgId);
     }
@@ -39,7 +42,7 @@ public class OrderService {
      * 手动触发重发失败的消息
      */
     public void resendWaitingTxMsg(String shardTailNumber) {
-        txMsgClient.resendWaitingTxMsg(shardTailNumber);
+        kafkaTxMsgClient.resendWaitingTxMsg(shardTailNumber);
     }
 
     /**
@@ -48,6 +51,6 @@ public class OrderService {
     public void cleanupExpiredMessages() {
         // 清理1小时前的过期消息
         long oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000;
-        txMsgClient.cleanExpiredTxMsg(oneHourAgo);
+        kafkaTxMsgClient.cleanExpiredTxMsg(oneHourAgo);
     }
 }
