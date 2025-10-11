@@ -116,8 +116,8 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
             }
         }
 
-        String topic = txMsgModels.get(0).getTopic();
         if (ListUtils.isNotEmpty(failedMsgIds)) {
+            String topic = txMsgModels.get(0).getTopic();
             logger.error("Kafka topic:{}, batch message sending failed, failed message IDs: {}", topic, failedMsgIds);
         }
 
