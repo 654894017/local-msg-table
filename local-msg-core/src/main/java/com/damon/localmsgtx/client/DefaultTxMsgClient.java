@@ -5,6 +5,7 @@ import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.handler.AbstractTxMsgHandler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
+import com.damon.localmsgtx.utils.StrUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
@@ -13,6 +14,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.Assert;
 
 import java.nio.charset.StandardCharsets;
+import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 
 /**
@@ -46,6 +48,11 @@ public class DefaultTxMsgClient implements ITxMsgClient {
      */
     @Override
     public Long sendTxMsg(String msgKey, String content) {
+        return this.sendTxMsg(msgKey, StrUtil.EMPTY, content);
+    }
+
+    @Override
+    public Long sendTxMsg(String msgKey, String msgTag, String content) {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
@@ -55,7 +62,7 @@ public class DefaultTxMsgClient implements ITxMsgClient {
             logger.warn("Message size {} bytes exceeds Kafka default limit {} bytes", messageSize, MAX_MESSAGE_SIZE);
             throw new TxMsgException("Message size exceeds Kafka default limit of 1MB");
         }
-        TxMsgModel txMsg = storeTxMsg(content, msgKey);
+        TxMsgModel txMsg = storeTxMsg(content, msgKey, Optional.ofNullable(msgTag).orElse(StrUtil.EMPTY));
         registerTransactionCallback(txMsg);
         return txMsg.getId();
     }
@@ -63,13 +70,13 @@ public class DefaultTxMsgClient implements ITxMsgClient {
     /**
      * Store message to database (within local transaction)
      */
-    private TxMsgModel storeTxMsg(String content, String msgKey) {
+    private TxMsgModel storeTxMsg(String content, String msgKey, String msgTag) {
         // Check transaction status
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
             logger.error("Current operation is not within an active transaction, message sending consistency cannot be guaranteed");
         }
 
-        TxMsgModel txMsg = txMsgHandler.saveMsg(content, msgKey);
+        TxMsgModel txMsg = txMsgHandler.saveMsg(content, msgKey, msgTag);
         logger.debug("Transactional message stored in database, msgId: {}", txMsg.getId());
         return txMsg;
 

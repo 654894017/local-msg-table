@@ -33,4 +33,21 @@ public class OrderService {
 
         log.info("Order created and transactional message registered, msgId: " + msgId);
     }
+
+
+    /**
+     * 手动触发重发失败的消息
+     */
+    public void resendWaitingTxMsg(String shardTailNumber) {
+        txMsgClient.resendWaitingTxMsg(shardTailNumber);
+    }
+
+    /**
+     * 清理过期消息
+     */
+    public void cleanupExpiredMessages() {
+        // 清理1小时前的过期消息
+        long oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000;
+        txMsgClient.cleanExpiredTxMsg(oneHourAgo);
+    }
 }

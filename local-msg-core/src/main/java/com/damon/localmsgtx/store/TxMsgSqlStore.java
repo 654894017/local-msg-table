@@ -30,10 +30,10 @@ public class TxMsgSqlStore {
 
     private final Logger logger = LoggerFactory.getLogger(TxMsgSqlStore.class);
     // SQL语句常量
-    private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, status, random_factor, create_time, update_time ) " +
-            "VALUES (?, ?, ?, ?, ?, ?, ?)";
+    private final String INSERT_TX_MSG_SQL = "INSERT INTO %s (msg_key, content, topic, msg_tag, status, random_factor, create_time, update_time ) " +
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
     private final String UPDATE_SEND_MSG_SQL = "UPDATE %s SET status = ?, update_time = ? WHERE id = ? AND status = ?";
-    private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, status, random_factor, create_time, update_time " +
+    private final String SELECT_WAITING_MSG_SQL = "SELECT id, msg_key, content, topic, msg_tag, status, random_factor, create_time, update_time " +
             "FROM %s WHERE id > ? AND status = ? AND random_factor LIKE ? ORDER BY id ASC LIMIT ?";
     private final String DELETE_EXPIRED_SENDED_MSG_SQL = "DELETE FROM %s WHERE status = ? AND create_time <= ? LIMIT ?";
     private final String CHECK_TABLE_EXISTS_SQL = "SELECT * FROM %s LIMIT 1";
@@ -41,10 +41,11 @@ public class TxMsgSqlStore {
             CREATE TABLE `%s` (
               `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
               `content` text NOT NULL COMMENT '消息内容（JSON格式或字符串）',
-              `topic` varchar(255) NOT NULL COMMENT 'Kafka消息主题',
+              `topic` varchar(255) NOT NULL COMMENT '消息主题',
               `msg_key` varchar(128) NOT NULL COMMENT '消息唯一标识（用于幂等性处理）',
+              `msg_tag` varchar(128) NOT NULL COMMENT '消息标签（rocketmq）',
               `status` tinyint NOT NULL COMMENT '消息状态：0-等待发送，1-已发送',
-              `random_factor` varchar(10) NOT NULL COMMENT '随机因子',
+              `random_factor` varchar(10) NOT NULL COMMENT '随机因子(定时调度分片使用)',
               `create_time` bigint NOT NULL COMMENT '创建时间（毫秒时间戳）',
               `update_time` bigint NOT NULL COMMENT '更新时间（毫秒时间戳）',
               PRIMARY KEY (`id`),
@@ -132,7 +133,7 @@ public class TxMsgSqlStore {
      * @param msgKey  Message unique identifier
      * @return Inserted message model
      */
-    public TxMsgModel insertTxMsg(String content, String msgKey) {
+    public TxMsgModel insertTxMsg(String content, String msgKey, String msgTag) {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
@@ -149,15 +150,16 @@ public class TxMsgSqlStore {
                 ps.setString(1, msgKey);
                 ps.setString(2, content);
                 ps.setString(3, topic);
-                ps.setInt(4, TxMsgStatusEnum.WAITING.getStatus());
-                ps.setString(5, randomFactor);
-                ps.setLong(6, currentTime);
+                ps.setString(4, msgTag);
+                ps.setInt(5, TxMsgStatusEnum.WAITING.getStatus());
+                ps.setString(6, randomFactor);
                 ps.setLong(7, currentTime);
+                ps.setLong(8, currentTime);
                 return ps;
             }, keyHolder);
             Long id = keyHolder.getKey().longValue();
             logger.debug("Transactional message inserted successfully, id: {}, topic: {}, msgKey: {}", id, topic, msgKey);
-            return buildTxMsgModel(id, content, topic, msgKey, TxMsgStatusEnum.WAITING.getStatus(), randomFactor, currentTime);
+            return buildTxMsgModel(id, content, topic, msgKey, msgTag, TxMsgStatusEnum.WAITING.getStatus(), randomFactor, currentTime);
         } catch (DuplicateKeyException e) {
             logger.warn("Duplicate key exception occurred while inserting transactional message, topic: {}, msgKey: {}", topic, msgKey, e);
             throw new TxMsgDuplicateKeyException("Duplicate key exception occurred while inserting transactional message", e);
@@ -256,9 +258,9 @@ public class TxMsgSqlStore {
             // Build batch update SQL, use IN clause to update status of multiple IDs
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("UPDATE ").append(tableName)
-                .append(" SET status = ?, update_time = ?")
-                .append(" WHERE status = ? ")
-                .append(" AND id IN (");
+                    .append(" SET status = ?, update_time = ?")
+                    .append(" WHERE status = ? ")
+                    .append(" AND id IN (");
 
             // Add placeholders for each ID
             for (int i = 0; i < successMsgIds.size(); i++) {
@@ -293,11 +295,12 @@ public class TxMsgSqlStore {
     /**
      * Build message model
      */
-    private TxMsgModel buildTxMsgModel(Long id, String content, String topic, String msgKey, int status, String randomFactor, long createTime) {
+    private TxMsgModel buildTxMsgModel(Long id, String content, String topic, String msgKey, String msgTag, int status, String randomFactor, long createTime) {
         TxMsgModel model = new TxMsgModel();
         model.setId(id);
         model.setContent(content);
         model.setTopic(topic);
+        model.setMsgTag(msgTag);
         model.setMsgKey(msgKey);
         model.setStatus(status);
         model.setRandomFactor(randomFactor);
@@ -315,6 +318,7 @@ public class TxMsgSqlStore {
             model.setMsgKey(rs.getString("msg_key"));
             model.setContent(rs.getString("content"));
             model.setTopic(rs.getString("topic"));
+            model.setMsgTag(rs.getString("msg_tag"));
             model.setStatus(rs.getInt("status"));
             model.setRandomFactor(rs.getString("random_factor"));
             model.setCreateTime(rs.getLong("create_time"));

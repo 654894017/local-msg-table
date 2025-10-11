@@ -18,7 +18,10 @@ public class TxMsgModel {
      * 主题
      */
     private String topic;
-
+    /**
+     * 标签
+     */
+    private String msgTag;
 
     /**
      * 状态：1-等待，2-发送
@@ -57,8 +60,7 @@ public class TxMsgModel {
     public void setTopic(String topic) {
         this.topic = topic;
     }
-
-
+    
     public int getStatus() {
         return status;
     }
@@ -97,5 +99,13 @@ public class TxMsgModel {
 
     public void setRandomFactor(String randomFactor) {
         this.randomFactor = randomFactor;
+    }
+
+    public String getMsgTag() {
+        return msgTag;
+    }
+
+    public void setMsgTag(String msgTag) {
+        this.msgTag = msgTag;
     }
 }

@@ -1,4 +1,4 @@
-package com.damon.order.demo;
+package com.damon.order.demo.config;
 
 import com.damon.localmsgtx.client.DefaultTxMsgClient;
 import com.damon.localmsgtx.client.ITxMsgClient;
@@ -10,20 +10,20 @@ import org.springframework.context.annotation.Configuration;
 import javax.sql.DataSource;
 
 @Configuration
-public class OrderTxMsgCongfig {
+public class OrderKafkaTxMsgCongfig {
     public static final String ORDER_TOPIC = "order-events";
 
     public static final String KAFKA_SERVER = "localhost:9092";
 
-    public static final String TX_MSG_TABLE = "transactional_messages";
+    public static final String KAFKA_TX_MSG_TABLE = "kafka_transactional_messages";
 
-    @Bean
+    @Bean("kafkaTxMsgClient")
     public ITxMsgClient txMsgClient(DataSource dataSource) {
         TxMsgConfig config = TxMsgKafkaConfigFactory.simpleConfig(
                 KAFKA_SERVER,
                 ORDER_TOPIC,
                 dataSource,
-                TX_MSG_TABLE
+                KAFKA_TX_MSG_TABLE
         );
         return new DefaultTxMsgClient(config);
     }

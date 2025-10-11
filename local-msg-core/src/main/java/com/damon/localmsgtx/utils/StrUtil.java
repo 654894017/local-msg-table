@@ -1,6 +1,9 @@
 package com.damon.localmsgtx.utils;
 
 public class StrUtil {
+
+    public static String EMPTY = "";
+
     public static String leftPad(String str, int size, String padStr) {
         if (str == null) {
             return null;

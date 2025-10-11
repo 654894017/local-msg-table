@@ -38,8 +38,8 @@ public abstract class AbstractTxMsgHandler {
         this.maxResendNumPerTask = maxResendNumPerTask;
     }
 
-    public TxMsgModel saveMsg(String content, String msgKey) {
-        return txMsgSqlStore.insertTxMsg(content, msgKey);
+    public TxMsgModel saveMsg(String content, String msgKey, String msgTag) {
+        return txMsgSqlStore.insertTxMsg(content, msgKey, msgTag);
     }
 
     /**
@@ -102,7 +102,7 @@ public abstract class AbstractTxMsgHandler {
             maxId = waitingMessages.get(currentFetchNum - 1).getId();
 
         } while (currentFetchNum == fetchLimit); // If this fetch is full, there may be more messages
-        
+
         logger.info("Resend task completed, total messages processed in this run: {}", totalProcessed);
     }
     

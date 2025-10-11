@@ -19,6 +19,19 @@ public interface ITxMsgClient {
     Long sendTxMsg(String msgKey, String content) throws IllegalArgumentException, TxMsgDuplicateKeyException, TxMsgStoreException;
 
     /**
+     * send transactional message
+     *
+     * @param msgKey
+     * @param magTag
+     * @param content
+     * @return
+     * @throws IllegalArgumentException
+     * @throws TxMsgDuplicateKeyException
+     * @throws TxMsgStoreException
+     */
+    Long sendTxMsg(String msgKey, String magTag, String content) throws IllegalArgumentException, TxMsgDuplicateKeyException, TxMsgStoreException;
+
+    /**
      * resend all unsent messages
      *
      * @param shardTailNumber

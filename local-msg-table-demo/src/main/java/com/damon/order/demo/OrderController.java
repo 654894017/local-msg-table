@@ -1,6 +1,5 @@
 package com.damon.order.demo;
 
-import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.utils.ShardTailNumber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -11,8 +10,6 @@ import org.springframework.web.bind.annotation.*;
 public class OrderController {
 
     private final OrderService orderService;
-
-    private final ITxMsgClient txMsgClient;
 
     /**
      * 创建订单并发送事务消息
@@ -36,7 +33,7 @@ public class OrderController {
     public String resendWaitingTxMsg() {
         ShardTailNumber shardTailNumber = new ShardTailNumber(1, 0, 1);
         shardTailNumber.generateTailNumbers().forEach(
-                txMsgClient::resendWaitingTxMsg
+                orderService::resendWaitingTxMsg
         );
         return "Resend task triggered";
     }
@@ -46,9 +43,7 @@ public class OrderController {
      */
     @DeleteMapping("/cleanup")
     public String cleanupExpiredMessages() {
-        // 清理1小时前的过期消息
-        long oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000;
-        txMsgClient.cleanExpiredTxMsg(oneHourAgo);
+        orderService.cleanupExpiredMessages();
         return "Cleanup task triggered";
     }
 }
