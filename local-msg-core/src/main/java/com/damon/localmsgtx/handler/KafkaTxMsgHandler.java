@@ -5,7 +5,6 @@ import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
-import org.apache.kafka.clients.producer.RecordMetadata;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
@@ -56,7 +55,6 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         this(kafkaProducer, txMsgSqlStore, 50, 2000, 200);
     }
 
-
     /**
      * Actually execute single message sending logic
      */
@@ -69,14 +67,18 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         try {
             // Build Kafka message
             ProducerRecord<String, String> record = new ProducerRecord<>(topic, msgKey, content);
-            RecordMetadata metadata = kafkaProducer.send(record).get();
-            logger.info("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
-                    msgId, metadata.topic(), metadata.partition(), metadata.offset());
-            // Update message status to "sent" after successful sending
-            int updateRows = txMsgSqlStore.updateSendMsg(txMsgModel);
-            if (updateRows <= 0) {
-                logger.warn("Message status update failed, corresponding record not found [msgId: {}]", msgId);
-            }
+            kafkaProducer.send(record, (metadata, exception) -> {
+                if (exception == null) {
+                    logger.debug("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
+                            msgId, metadata.topic(), metadata.partition(), metadata.offset());
+                    int updateRows = txMsgSqlStore.updateSendMsg(txMsgModel);
+                    if (updateRows <= 0) {
+                        logger.warn("Message status update failed, corresponding record not found [msgId: {}]", msgId);
+                    }
+                } else {
+                    logger.error("Message sending failed [msgId: {}, topic: {}]", msgId, topic, exception);
+                }
+            });
         } catch (Exception e) {
             logger.error("Message sending execution exception [msgId: {}, topic: {}]", msgId, topic, e);
         }
