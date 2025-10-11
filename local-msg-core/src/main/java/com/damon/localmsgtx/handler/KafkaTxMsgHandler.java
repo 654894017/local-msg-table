@@ -89,6 +89,9 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      */
     @Override
     protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
+        if (ListUtils.isEmpty(txMsgModels)) {
+            return;
+        }
         // Process sending results and collect successful message IDs
         final List<Long> successMsgIds = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
         final List<Long> failedMsgIds = Collections.synchronizedList(new ArrayList<>());
