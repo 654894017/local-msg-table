@@ -2,6 +2,7 @@ package com.damon.localmsgtx.handler;
 
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
+import com.damon.localmsgtx.utils.ListUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.clients.producer.RecordMetadata;
@@ -10,9 +11,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Transactional message handler
@@ -21,14 +21,6 @@ import java.util.concurrent.TimeUnit;
 public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
     private static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgHandler.class);
 
-    /**
-     * Maximum number of pending messages to fetch in a single request
-     */
-    private final int fetchLimit;
-    /**
-     * Maximum number of messages to process in a single resend task (to prevent tasks from being too long)
-     */
-    private final int maxResendNumPerTask;
 
     private final KafkaProducer<String, String> kafkaProducer;
 
@@ -40,24 +32,16 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * @param fetchLimit          Number of pending messages to fetch in a single request
      * @param maxResendNumPerTask Maximum number of messages to resend in a single task
      * @param deleteBatchSize     Batch size for deletion
-     * @param batchSendSize       Batch size for sending
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore,
                              int fetchLimit,
                              int maxResendNumPerTask,
-                             int deleteBatchSize,
-                             int batchSendSize) {
-        super(deleteBatchSize, txMsgSqlStore);
+                             int deleteBatchSize) {
+        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask);
         // Parameter validation
         Assert.notNull(kafkaProducer, "KafkaProducer cannot be null");
-        Assert.isTrue(fetchLimit > 0, "Fetch limit must be greater than 0");
-        Assert.isTrue(maxResendNumPerTask > 0, "Maximum resend number per task must be greater than 0");
-        Assert.isTrue(deleteBatchSize > 0, "Delete batch size must be greater than 0");
-        Assert.isTrue(batchSendSize > 0, "Batch send size must be greater than 0");
         this.kafkaProducer = kafkaProducer;
-        this.fetchLimit = fetchLimit;
-        this.maxResendNumPerTask = maxResendNumPerTask;
     }
 
     /**
@@ -66,73 +50,18 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * - Fetch 50 messages at a time
      * - Maximum 2000 messages per resend task
      * - Delete batch size of 200
-     * - Batch send size of 50
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore) {
-        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 50);
-    }
-
-
-    /**
-     * Send a single transactional message to Kafka
-     *
-     * @param txMsgModel Transactional message model (cannot be null)
-     */
-    @Override
-    public void sendMsg(TxMsgModel txMsgModel) {
-        Assert.notNull(txMsgModel, "Transactional message model cannot be null");
-        Assert.hasText(txMsgModel.getTopic(), "Message topic cannot be empty");
-        Assert.hasText(txMsgModel.getContent(), "Message content cannot be empty");
-        doSendMessage(txMsgModel);
-    }
-
-
-    /**
-     * Resend all messages in "waiting to send" status
-     * Used for compensation mechanism to ensure unsent messages are retried
-     */
-    @Override
-    public void resendWaitingMessages(String shardTailNumber) {
-        int totalProcessed = 0;
-        int currentFetchNum;
-        Long maxId = 0L;
-
-        // Loop to fetch and process messages until no more messages or reaching the single task processing limit
-        do {
-            // Avoid exceeding the maximum processing limit
-            if (totalProcessed >= maxResendNumPerTask) {
-                logger.warn("Single resend task has reached the maximum processing limit: {}, remaining messages will be processed in the next task", maxResendNumPerTask);
-                break;
-            }
-
-            // Fetch pending messages
-            List<TxMsgModel> waitingMessages = txMsgSqlStore.getWaitingMessages(fetchLimit, maxId, shardTailNumber);
-            currentFetchNum = waitingMessages.size();
-            totalProcessed += currentFetchNum;
-
-            if (currentFetchNum == 0) {
-                logger.debug("No messages pending resend");
-                break;
-            }
-
-            logger.info("Starting to process batch messages, count: {}, total processed: {}, shardTailNumber: {}", currentFetchNum, totalProcessed, shardTailNumber);
-
-            // Batch send messages
-            doBatchSendMessages(waitingMessages);
-
-            maxId = waitingMessages.get(currentFetchNum - 1).getId();
-
-        } while (currentFetchNum == fetchLimit); // If this fetch is full, there may be more messages
-
-        logger.info("Resend task completed, total messages processed in this run: {}", totalProcessed);
+        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200);
     }
 
 
     /**
      * Actually execute single message sending logic
      */
-    private void doSendMessage(TxMsgModel txMsgModel) {
+    @Override
+    protected void sendMessage(TxMsgModel txMsgModel) {
         String topic = txMsgModel.getTopic();
         String msgKey = txMsgModel.getMsgKey();
         String content = txMsgModel.getContent();
@@ -156,44 +85,40 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
     /**
      * Actually execute batch message sending logic
      */
-    private void doBatchSendMessages(List<TxMsgModel> txMsgModels) {
-        try {
-            // Batch send messages and collect results
-            List<Future<RecordMetadata>> futures = txMsgModels.stream()
-                    .map(model -> {
-                        ProducerRecord<String, String> record =
-                                new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
-                        return kafkaProducer.send(record);
-                    }).toList();
-
-            // Process sending results and collect successful message IDs
-            List<Long> successMsgIds = new ArrayList<>();
-            for (int i = 0; i < futures.size(); i++) {
-                TxMsgModel model = txMsgModels.get(i);
-                try {
-                    RecordMetadata metadata = futures.get(i).get();
-                    logger.info("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
-                            model.getId(), metadata.topic(), metadata.partition(), metadata.offset());
+    @Override
+    protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
+        // Process sending results and collect successful message IDs
+        final List<Long> successMsgIds = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
+        final List<Long> failedMsgIds = Collections.synchronizedList(new ArrayList<>());
+        // Use callback for async processing
+        txMsgModels.forEach(model -> {
+            ProducerRecord<String, String> record = new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
+            kafkaProducer.send(record, (metadata, exception) -> {
+                if (exception == null) {
+                    logger.debug("Batch message sent successfully [msgId: {}, topic: {}]", model.getId(), model.getTopic());
                     successMsgIds.add(model.getId());
-                } catch (Exception e) {
-                    logger.error("Message sending execution exception [msgId: {}, topic: {}]", model.getId(), model.getTopic(), e);
+                } else {
+                    logger.error("Batch message sending failed [msgId: {}, topic: {}]", model.getId(), model.getTopic(), exception);
+                    failedMsgIds.add(model.getId());
                 }
-            }
-
+            });
+        });
+        // Wait for all messages to be sent
+        kafkaProducer.flush();
+        if (ListUtils.isNotEmpty(successMsgIds)) {
             // Batch update status of successfully sent messages
-            if (!successMsgIds.isEmpty()) {
-                int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
-                logger.info("Batch message status update completed, should update: {}, actually updated: {}", successMsgIds.size(), updateRows);
-                if (updateRows != successMsgIds.size()) {
-                    logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}", successMsgIds.size(), updateRows);
-                }
-            }
-        } catch (Exception e) {
-            logger.error("Batch message sending execution exception", e);
-            try {
-                TimeUnit.SECONDS.sleep(5);
-            } catch (InterruptedException ignore) {
+            int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
+            logger.info("Batch message status update completed, should update: {}, actually updated: {}", successMsgIds.size(), updateRows);
+            if (updateRows != successMsgIds.size()) {
+                logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}", successMsgIds.size(), updateRows);
             }
         }
+
+        String topic = txMsgModels.get(0).getTopic();
+        if (ListUtils.isNotEmpty(failedMsgIds)) {
+            logger.error("Kafka topic:{}, batch message sending failed, failed message IDs: {}", topic, failedMsgIds);
+        }
+
+
     }
 }
