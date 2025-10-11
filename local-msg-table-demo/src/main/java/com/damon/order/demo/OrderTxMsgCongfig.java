@@ -15,11 +15,15 @@ public class OrderTxMsgCongfig {
 
     public static final String KAFKA_SERVER = "localhost:9092";
 
+    public static final String TX_MSG_TABLE = "transactional_messages";
+
     @Bean
     public ITxMsgClient txMsgClient(DataSource dataSource) {
         TxMsgConfig config = TxMsgKafkaConfigFactory.simpleConfig(
-                KAFKA_SERVER, ORDER_TOPIC,
-                dataSource, "transactional_messages"
+                KAFKA_SERVER,
+                ORDER_TOPIC,
+                dataSource,
+                TX_MSG_TABLE
         );
         return new DefaultTxMsgClient(config);
     }
