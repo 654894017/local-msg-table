@@ -5,6 +5,7 @@ import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
 import org.apache.rocketmq.client.consumer.listener.MessageListenerConcurrently;
+import org.apache.rocketmq.common.consumer.ConsumeFromWhere;
 import org.apache.rocketmq.common.message.MessageExt;
 import org.springframework.stereotype.Component;
 
@@ -28,12 +29,12 @@ public class OrderRocketEventConsumer {
     private void consumeMessages() throws Exception {
         // 1. 创建消费者，指定消费者组名（同一业务用同一组名）
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("order_consumer_group");
-
+        consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
         // 2. 设置 NameServer 地址（集群环境用逗号分隔）
         consumer.setNamesrvAddr(OrderRocketTxMsgCongfig.ROCKETMQ_SERVER);
 
         // 3. 订阅 Topic 和 Tag（* 表示所有 Tag，也可指定具体 Tag 如 "create,paid"）
-        consumer.subscribe(OrderRocketTxMsgCongfig.ROCKETMQ_SERVER, "*");
+        consumer.subscribe(OrderRocketTxMsgCongfig.ORDER_TOPIC, "test");
 
         // 4. 注册消息监听器（并发消费）
         consumer.registerMessageListener(new MessageListenerConcurrently() {
@@ -43,7 +44,7 @@ public class OrderRocketEventConsumer {
                     ConsumeConcurrentlyContext context) {  // 消费上下文（如消息队列信息）
                 for (MessageExt msg : msgs) {
                     String content = new String(msg.getBody());
-                    System.out.printf("Received message - Topic: %s,  Value: %s%n", msg.getTopic(), content);
+                    System.out.printf("Rocket received message - Topic: %s,  Value: %s%n", msg.getTopic(), content);
                 }
                 // 8. 所有消息处理成功，返回 CONSUME_SUCCESS
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;

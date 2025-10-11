@@ -36,9 +36,12 @@ public class OrderService {
         String messageContent = String.format("{\"orderId\":\"%s\",\"product\":\"%s\",\"quantity\":%d}",
                 orderId, product, quantity);
 
-        Long msgId = rocketTxMsgClient.sendTxMsg(orderId, messageContent);
+        Long rocketmqMsgId = rocketTxMsgClient.sendTxMsg(orderId, "test", messageContent);
+        log.info("Order created and transactional message registered, msgId: " + rocketmqMsgId);
 
-        log.info("Order created and transactional message registered, msgId: " + msgId);
+        Long kafkaMsgId = kafkaTxMsgClient.sendTxMsg(orderId, messageContent);
+        log.info("Order created and transactional message registered, msgId: " + kafkaMsgId);
+
     }
 
 

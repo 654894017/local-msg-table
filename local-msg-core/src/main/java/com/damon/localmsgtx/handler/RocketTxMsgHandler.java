@@ -3,6 +3,7 @@ package com.damon.localmsgtx.handler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
+import com.damon.localmsgtx.utils.StrUtil;
 import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
@@ -172,6 +173,10 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
     private Message convertToRocketMessages(TxMsgModel model) {
         Message message = new Message(model.getTopic(), model.getContent().getBytes());
         message.setKeys(model.getMsgKey());
+        if (StrUtil.isNotEmpty(model.getMsgTag())) {
+            message.setTags(model.getMsgTag());
+        }
         return message;
+
     }
 }

@@ -35,7 +35,7 @@ public class OrderKafkaEventConsumer {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("Received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
+                    System.out.printf("Kafka received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
                             record.topic(), record.partition(), record.offset(), record.key(), record.value());
                 }
                 if (!records.isEmpty()) {
