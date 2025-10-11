@@ -50,6 +50,7 @@ public class OrderService {
      */
     public void resendWaitingTxMsg(String shardTailNumber) {
         kafkaTxMsgClient.resendWaitingTxMsg(shardTailNumber);
+        rocketTxMsgClient.resendWaitingTxMsg(shardTailNumber);
     }
 
     /**
@@ -59,5 +60,6 @@ public class OrderService {
         // 清理1小时前的过期消息
         long oneHourAgo = System.currentTimeMillis() - 60 * 60 * 1000;
         kafkaTxMsgClient.cleanExpiredTxMsg(oneHourAgo);
+        rocketTxMsgClient.cleanExpiredTxMsg(oneHourAgo);
     }
 }
