@@ -256,8 +256,9 @@ public class TxMsgSqlStore {
             // Build batch update SQL, use IN clause to update status of multiple IDs
             StringBuilder sqlBuilder = new StringBuilder();
             sqlBuilder.append("UPDATE ").append(tableName)
-                    .append(" SET status = ?, update_time = ?")
-                    .append(" WHERE id IN (");
+                .append(" SET status = ?, update_time = ?")
+                .append(" WHERE status = ? ")
+                .append(" AND id IN (");
 
             // Add placeholders for each ID
             for (int i = 0; i < successMsgIds.size(); i++) {
@@ -274,9 +275,10 @@ public class TxMsgSqlStore {
             Object[] params = new Object[2 + successMsgIds.size()];
             params[0] = TxMsgStatusEnum.SENT.getStatus();
             params[1] = System.currentTimeMillis();
+            params[2] = TxMsgStatusEnum.WAITING.getStatus();
 
             for (int i = 0; i < successMsgIds.size(); i++) {
-                params[2 + i] = successMsgIds.get(i);
+                params[3 + i] = successMsgIds.get(i);
             }
 
             int updatedRows = jdbcTemplate.update(sql, params);
