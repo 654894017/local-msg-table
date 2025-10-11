@@ -14,7 +14,7 @@ public class TxMsgSenderThreadPoolFactory {
         return Executors.newThreadPerTaskExecutor(
                 r -> {
                     Thread thread = Thread.ofVirtual().unstarted(r);
-                    thread.setName("kafka-tx-msg-sender-" + thread.threadId());
+                    thread.setName("tx-msg-sender-" + thread.threadId());
                     return thread;
                 }
         );
