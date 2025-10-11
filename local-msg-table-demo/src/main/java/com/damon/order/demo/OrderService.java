@@ -17,6 +17,10 @@ public class OrderService {
     @Qualifier("kafkaTxMsgClient")
     private ITxMsgClient kafkaTxMsgClient;
 
+    @Autowired
+    @Qualifier("rocketTxMsgClient")
+    private ITxMsgClient rocketTxMsgClient;
+
     /**
      * 创建订单并发送事务消息
      * 这里演示了事务一致性：订单创建和消息发送在同一事务中
@@ -32,7 +36,7 @@ public class OrderService {
         String messageContent = String.format("{\"orderId\":\"%s\",\"product\":\"%s\",\"quantity\":%d}",
                 orderId, product, quantity);
 
-        Long msgId = kafkaTxMsgClient.sendTxMsg(orderId, messageContent);
+        Long msgId = rocketTxMsgClient.sendTxMsg(orderId, messageContent);
 
         log.info("Order created and transactional message registered, msgId: " + msgId);
     }

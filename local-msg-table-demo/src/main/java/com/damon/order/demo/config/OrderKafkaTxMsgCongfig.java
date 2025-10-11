@@ -11,7 +11,7 @@ import javax.sql.DataSource;
 
 @Configuration
 public class OrderKafkaTxMsgCongfig {
-    public static final String ORDER_TOPIC = "order-events";
+    public static final String ORDER_TOPIC = "order_events";
 
     public static final String KAFKA_SERVER = "localhost:9092";
 
