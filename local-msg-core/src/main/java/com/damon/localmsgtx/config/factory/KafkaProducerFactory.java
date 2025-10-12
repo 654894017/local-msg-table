@@ -13,7 +13,7 @@ public class KafkaProducerFactory {
         props.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, server);
         props.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
         props.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class);
-        props.put(ProducerConfig.ACKS_CONFIG, "0");
+        props.put(ProducerConfig.ACKS_CONFIG, "1");
         props.put(ProducerConfig.RETRIES_CONFIG, 3);
         // 批量发送相关配置
         // 批次大小，单位字节，默认16384(16KB)

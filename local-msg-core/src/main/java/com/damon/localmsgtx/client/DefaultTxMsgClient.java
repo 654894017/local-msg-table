@@ -56,8 +56,9 @@ public class DefaultTxMsgClient implements ITxMsgClient {
         // Parameter validation
         Assert.hasText(content, "Message content cannot be empty");
         Assert.hasText(msgKey, "Message key cannot be empty");
+        Assert.isTrue(msgKey.length() <= 128, "Message key length cannot exceed 128 characters");
         if (StrUtil.isNotEmpty(msgTag)) {
-            //msgTag最大长度128
+            //msgTag max length 128
             Assert.isTrue(msgTag.length() <= 128, "Message tag length cannot exceed 128 characters");
         }
         // 检查消息大小是否超过 Kafka 默认限制
