@@ -20,7 +20,7 @@ public class OrderRocketEventConsumer {
             try {
                 consumeMessages();
             } catch (Exception e) {
-                throw new RuntimeException(e);
+                e.printStackTrace();
             }
         }).start();
     }
@@ -39,9 +39,7 @@ public class OrderRocketEventConsumer {
         // 4. 注册消息监听器（并发消费）
         consumer.registerMessageListener(new MessageListenerConcurrently() {
             @Override
-            public ConsumeConcurrentlyStatus consumeMessage(
-                    List<MessageExt> msgs,  // 待消费的消息列表
-                    ConsumeConcurrentlyContext context) {  // 消费上下文（如消息队列信息）
+            public ConsumeConcurrentlyStatus consumeMessage(List<MessageExt> msgs, ConsumeConcurrentlyContext context) {
                 for (MessageExt msg : msgs) {
                     String content = new String(msg.getBody());
                     System.out.printf("Rocket received message - Topic: %s,  Value: %s%n", msg.getTopic(), content);
