@@ -6,7 +6,9 @@ public class TxMsgModel {
      * 主键
      */
     private Long id;
-
+    /**
+     * 消息key
+     */
     private String msgKey;
 
     /**
@@ -28,6 +30,9 @@ public class TxMsgModel {
      */
     private int status;
 
+    /**
+     * 随机因子(定时任务分片使用)
+     */
     private String randomFactor;
     /**
      * 创建时间
@@ -35,7 +40,6 @@ public class TxMsgModel {
     private long createTime;
 
     private Long updateTime;
-
 
     public Long getId() {
         return id;
@@ -60,7 +64,7 @@ public class TxMsgModel {
     public void setTopic(String topic) {
         this.topic = topic;
     }
-    
+
     public int getStatus() {
         return status;
     }
