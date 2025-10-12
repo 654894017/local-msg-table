@@ -1,5 +1,6 @@
 package com.damon.localmsgtx.handler;
 
+import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
@@ -8,14 +9,13 @@ import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import org.apache.rocketmq.client.producer.SendCallback;
 import org.apache.rocketmq.client.producer.SendResult;
 import org.apache.rocketmq.common.message.Message;
+import org.apache.rocketmq.common.message.MessageBatch;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.CountDownLatch;
+import java.util.stream.Collectors;
 
 /**
  * Transactional message handler based on RocketMQ
@@ -98,67 +98,30 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
         if (ListUtils.isEmpty(txMsgModels)) {
             return;
         }
-
-        // Process sending results and collect successful message IDs
-        final List<Long> successMsgIds = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
-        final List<Long> failedMsgIds = Collections.synchronizedList(new ArrayList<>());
-
         // Group messages by topic (RocketMQ batch send requires same topic)
         // Here we assume all messages in batch have same topic, if not, need to group them
         String topic = txMsgModels.get(0).getTopic();
-
-        CountDownLatch latch = new CountDownLatch(txMsgModels.size());
-        // Split messages into batches that don't exceed RocketMQ's size limit
-        for (TxMsgModel model : txMsgModels) {
-            Message message = convertToRocketMessages(model);
-            try {
-                // Send batch asynchronously
-                rocketProducer.send(message, new SendCallback() {
-                    @Override
-                    public void onSuccess(SendResult sendResult) {
-                        logger.debug("Batch message sent successfully [msgId: {}, topic: {}]", model.getId(), model.getTopic());
-                        // Collect successful message IDs
-                        successMsgIds.add(model.getId());
-                        latch.countDown();
-                    }
-
-                    @Override
-                    public void onException(Throwable exception) {
-                        logger.error("Batch message sending failed [msgId: {}, topic: {}]", model.getId(), model.getTopic(), exception);
-                        failedMsgIds.add(model.getId());
-                        latch.countDown();
-                    }
-                });
-            } catch (Exception e) {
-                logger.error("Batch message sending execution exception [msgId: {}, topic: {}]", model.getId(), model.getTopic(), e);
-            }
-        }
-
-        // Wait for all messages to be sent
+        List<Message> messages = txMsgModels.stream().map(this::convertToRocketMessages).toList();
+        MessageBatch batch = MessageBatch.generateFromList(messages);
+        batch.setBody(batch.encode());
+        List<Long> msgIds = txMsgModels.stream().map(TxMsgModel::getId).collect(Collectors.toList());
         try {
-            latch.await();
-        } catch (InterruptedException e) {
-            logger.error("Interrupted while waiting for batch message sending to complete");
+            rocketProducer.send(batch);
+        } catch (Exception e) {
+            logger.error("RocketMQ topic:{}, batch message sending failed, failed message IDs: {}", topic, msgIds, e);
+            throw new TxMsgException(e);
         }
-
         // Update status for successfully sent messages
-        if (ListUtils.isNotEmpty(successMsgIds)) {
-            int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
+        if (ListUtils.isNotEmpty(msgIds)) {
+            int updateRows = txMsgSqlStore.batchUpdateSendMsg(msgIds);
             logger.info("Batch message status update completed, should update: {}, actually updated: {}",
-                    successMsgIds.size(), updateRows);
+                    msgIds.size(), updateRows);
 
-            if (updateRows != successMsgIds.size()) {
+            if (updateRows != msgIds.size()) {
                 logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}",
-                        successMsgIds.size(), updateRows);
+                        msgIds.size(), updateRows);
             }
         }
-
-        // Log failed messages
-        if (ListUtils.isNotEmpty(failedMsgIds)) {
-            logger.error("RocketMQ topic:{}, batch message sending failed, failed message count: {}, first few IDs: {}",
-                    topic, failedMsgIds.size(), failedMsgIds.subList(0, Math.min(10, failedMsgIds.size())));
-        }
-
     }
 
     /**
