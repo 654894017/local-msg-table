@@ -32,10 +32,8 @@ public class OrderRocketEventConsumer {
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
         // 2. 设置 NameServer 地址（集群环境用逗号分隔）
         consumer.setNamesrvAddr(OrderRocketTxMsgCongfig.ROCKETMQ_SERVER);
-
         // 3. 订阅 Topic 和 Tag（* 表示所有 Tag，也可指定具体 Tag 如 "create,paid"）
         consumer.subscribe(OrderRocketTxMsgCongfig.ORDER_TOPIC, "test");
-
         // 4. 注册消息监听器（并发消费）
         consumer.registerMessageListener(new MessageListenerConcurrently() {
             @Override
@@ -48,8 +46,7 @@ public class OrderRocketEventConsumer {
                 return ConsumeConcurrentlyStatus.CONSUME_SUCCESS;
             }
         });
-
-        // 9. 启动消费者（启动后会自动拉取消息）
+        // 5. 启动消费者（启动后会自动拉取消息）
         consumer.start();
         System.out.println("消费者启动成功，等待接收消息...");
     }
