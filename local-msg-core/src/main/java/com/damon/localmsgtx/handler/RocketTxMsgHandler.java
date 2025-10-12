@@ -38,8 +38,9 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
                               TxMsgSqlStore txMsgSqlStore,
                               int fetchLimit,
                               int maxResendNumPerTask,
-                              int deleteBatchSize) {
-        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask);
+                              int deleteBatchSize,
+                              int exceptionSleep) {
+        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask, exceptionSleep);
         // Parameter validation
         Assert.notNull(rocketProducer, "RocketMQ producer cannot be null");
         this.rocketProducer = rocketProducer;
@@ -51,10 +52,11 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
      * - Fetch 50 messages at a time
      * - Maximum 2000 messages per resend task
      * - Delete batch size of 200
+     * - Exception sleep time of 5 seconds
      */
     public RocketTxMsgHandler(DefaultMQProducer rocketProducer,
                               TxMsgSqlStore txMsgSqlStore) {
-        this(rocketProducer, txMsgSqlStore, 50, 2000, 200);
+        this(rocketProducer, txMsgSqlStore, 50, 2000, 200, 5);
     }
 
     /**

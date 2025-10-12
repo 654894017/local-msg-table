@@ -31,13 +31,15 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * @param fetchLimit          Number of pending messages to fetch in a single request
      * @param maxResendNumPerTask Maximum number of messages to resend in a single task
      * @param deleteBatchSize     Batch size for deletion
+     * @param exceptionSleep      Sleep time after an exception occurs
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore,
                              int fetchLimit,
                              int maxResendNumPerTask,
-                             int deleteBatchSize) {
-        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask);
+                             int deleteBatchSize,
+                             int exceptionSleep) {
+        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask, exceptionSleep);
         // Parameter validation
         Assert.notNull(kafkaProducer, "KafkaProducer cannot be null");
         this.kafkaProducer = kafkaProducer;
@@ -49,10 +51,11 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * - Fetch 50 messages at a time
      * - Maximum 2000 messages per resend task
      * - Delete batch size of 200
+     * - Exception sleep time of 5 seconds
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore) {
-        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200);
+        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 5);
     }
 
     /**

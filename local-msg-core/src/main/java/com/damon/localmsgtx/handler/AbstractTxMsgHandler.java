@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 public abstract class AbstractTxMsgHandler {
     private static final Logger logger = LoggerFactory.getLogger(AbstractTxMsgHandler.class);
@@ -26,16 +27,20 @@ public abstract class AbstractTxMsgHandler {
      */
     protected final int maxResendNumPerTask;
 
-    protected AbstractTxMsgHandler(int deleteBatchSize, TxMsgSqlStore txMsgSqlStore, int fetchLimit, int maxResendNumPerTask) {
+    protected final int exceptionSleep;
+
+    protected AbstractTxMsgHandler(int deleteBatchSize, TxMsgSqlStore txMsgSqlStore, int fetchLimit, int maxResendNumPerTask, int exceptionSleep) {
         Assert.isTrue(deleteBatchSize > 0, "Delete batch size must be greater than 0");
         Assert.notNull(txMsgSqlStore, "TxMsgSqlStore cannot be null");
         Assert.isTrue(fetchLimit > 0, "Fetch limit must be greater than 0");
         Assert.isTrue(maxResendNumPerTask > 0, "Maximum resend number per task must be greater than 0");
         Assert.isTrue(deleteBatchSize > 0, "Delete batch size must be greater than 0");
+        Assert.isTrue(exceptionSleep > 0, "exceptionSleep resend number per task must be greater than 0");
         this.deleteBatchSize = deleteBatchSize;
         this.txMsgSqlStore = txMsgSqlStore;
         this.fetchLimit = fetchLimit;
         this.maxResendNumPerTask = maxResendNumPerTask;
+        this.exceptionSleep = exceptionSleep;
     }
 
     public TxMsgModel saveMsg(String content, String msgKey, String msgTag) {
@@ -105,12 +110,16 @@ public abstract class AbstractTxMsgHandler {
 
         logger.info("Resend task completed, total messages processed in this run: {}", totalProcessed);
     }
-    
+
     private void doBatchSendMessages(List<TxMsgModel> txMsgModels, String shardTailNumber) {
         try {
             batchSendMessages(txMsgModels);
         } catch (Exception e) {
-            logger.error("Error while processing batch messages, shardTailNumber: {}", shardTailNumber, e);
+            logger.error("Error while processing batch messages, shardTailNumber: {}, Sleep : {}s", shardTailNumber, exceptionSleep, e);
+            try {
+                TimeUnit.SECONDS.sleep(exceptionSleep);
+            } catch (InterruptedException agree) {
+            }
         }
     }
 
