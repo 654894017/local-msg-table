@@ -19,7 +19,7 @@ public interface ITxMsgClient {
     Long sendTxMsg(String msgKey, String content) throws IllegalArgumentException, TxMsgDuplicateKeyException, TxMsgStoreException;
 
     /**
-     * send transactional message
+     * send transactional message(rocketmq tag message)
      *
      * @param msgKey
      * @param magTag
