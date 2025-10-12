@@ -16,7 +16,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.stream.Collectors;
 
 /**
  * Transactional message handler based on RocketMQ
@@ -109,11 +108,6 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
         String topic = txMsgModels.get(0).getTopic();
 
         CountDownLatch latch = new CountDownLatch(txMsgModels.size());
-
-        List<Message> messages = txMsgModels.stream()
-                .map(txMsgModel -> convertToRocketMessages(txMsgModel))
-                .collect(Collectors.toList());
-
         // Split messages into batches that don't exceed RocketMQ's size limit
         for (TxMsgModel model : txMsgModels) {
             Message message = convertToRocketMessages(model);
