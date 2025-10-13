@@ -13,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class OrderService {
     @Autowired
     private JdbcTemplate jdbcTemplate;
+
     @Autowired
     @Qualifier("kafkaTxMsgClient")
     private ITxMsgClient kafkaTxMsgClient;

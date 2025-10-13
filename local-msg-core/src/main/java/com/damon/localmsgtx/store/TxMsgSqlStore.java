@@ -52,7 +52,7 @@ public class TxMsgSqlStore {
               UNIQUE KEY `uk_msgkey` (`msg_key`) USING BTREE COMMENT '用于根据msgKey查询消息（可选，根据业务需求添加）',
               KEY `idx_randomfactor` (`random_factor`) USING BTREE COMMENT '用于分片任务消息查询',
               KEY `idx_status_createtime` (`status`,`create_time`) USING BTREE COMMENT '用于查询等待发送的消息和清理过期消息'
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci COMMENT='事务消息存储表（确保消息发送与本地事务一致性）';
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='事务消息存储表（确保消息发送与本地事务一致性）';
             """;
     /**
      * Database table name (default: mq_messages)
