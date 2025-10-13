@@ -115,7 +115,7 @@ public abstract class AbstractTxMsgHandler {
         try {
             batchSendMessages(txMsgModels);
         } catch (Exception e) {
-            logger.error("Error while processing batch messages, shardTailNumber: {}, Sleep : {}s", shardTailNumber, exceptionSleep, e);
+            logger.error("Error while processing batch messages, shardTailNumber: {}, sleep : {}s", shardTailNumber, exceptionSleep, e);
             try {
                 TimeUnit.SECONDS.sleep(exceptionSleep);
             } catch (InterruptedException agree) {
