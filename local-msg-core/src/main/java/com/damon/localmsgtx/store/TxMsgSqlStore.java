@@ -40,7 +40,7 @@ public class TxMsgSqlStore {
     private final String CREATE_TABLE_SQL = """
             CREATE TABLE `%s` (
               `id` bigint NOT NULL AUTO_INCREMENT COMMENT '主键ID',
-              `content` text NOT NULL COMMENT '消息内容（JSON格式或字符串）',
+              `content` mediumtext NOT NULL COMMENT '消息内容（JSON格式或字符串）',
               `topic` varchar(255) NOT NULL COMMENT '消息主题',
               `msg_key` varchar(128) NOT NULL COMMENT '消息唯一标识（用于幂等性处理）',
               `msg_tag` varchar(128) NOT NULL COMMENT '消息标签（rocketmq）',
