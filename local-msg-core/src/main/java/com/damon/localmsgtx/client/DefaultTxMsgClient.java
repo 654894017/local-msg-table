@@ -78,7 +78,8 @@ public class DefaultTxMsgClient implements ITxMsgClient {
     private TxMsgModel storeTxMsg(String content, String msgKey, String msgTag) {
         // Check transaction status
         if (!TransactionSynchronizationManager.isActualTransactionActive()) {
-            logger.error("Current operation is not within an active transaction, message sending consistency cannot be guaranteed");
+            String errorMsg = "Current operation is not within an active transaction, message sending consistency cannot be guaranteed";
+            throw new TxMsgException(errorMsg);
         }
 
         TxMsgModel txMsg = txMsgHandler.saveMsg(content, msgKey, msgTag);
