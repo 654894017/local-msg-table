@@ -3,30 +3,27 @@ package com.damon.order.demo.config;
 import com.damon.localmsgtx.client.DefaultTxMsgClient;
 import com.damon.localmsgtx.client.ITxMsgClient;
 import com.damon.localmsgtx.config.TxMsgConfig;
-import com.damon.localmsgtx.config.factory.TxMsgRocketConfigFactory;
+import com.damon.localmsgtx.config.factory.TxMsgKafkaConfigFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
 @Configuration
-public class OrderRocketTxMsgCongfig {
+public class OrderKafkaTxMsgConfig {
     public static final String ORDER_TOPIC = "order_events";
 
-    public static final String ROCKETMQ_SERVER = "localhost:9876";
+    public static final String KAFKA_SERVER = "localhost:9092";
 
-    public static final String ORDER_GROUP = "order_group";
+    public static final String KAFKA_TX_MSG_TABLE = "kafka_transactional_messages";
 
-    public static final String ROCKET_TX_MSG_TABLE = "rocket_transactional_messages";
-
-    @Bean("rocketTxMsgClient")
+    @Bean("kafkaTxMsgClient")
     public ITxMsgClient txMsgClient(DataSource dataSource) {
-        TxMsgConfig config = TxMsgRocketConfigFactory.simpleConfig(
-                ROCKETMQ_SERVER,
+        TxMsgConfig config = TxMsgKafkaConfigFactory.simpleConfig(
+                KAFKA_SERVER,
                 ORDER_TOPIC,
-                ORDER_GROUP,
                 dataSource,
-                ROCKET_TX_MSG_TABLE
+                KAFKA_TX_MSG_TABLE
         );
         return new DefaultTxMsgClient(config);
     }

@@ -1,6 +1,6 @@
 package com.damon.order.demo.consumer;
 
-import com.damon.order.demo.config.OrderKafkaTxMsgCongfig;
+import com.damon.order.demo.config.OrderKafkaTxMsgConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.consumer.ConsumerRecords;
@@ -22,13 +22,13 @@ public class OrderKafkaEventConsumer {
 
     private void consumeMessages() {
         Properties props = new Properties();
-        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, OrderKafkaTxMsgCongfig.KAFKA_SERVER);
+        props.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, OrderKafkaTxMsgConfig.KAFKA_SERVER);
         props.put(ConsumerConfig.GROUP_ID_CONFIG, "order-event-consumer-group");
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
-        consumer.subscribe(Collections.singletonList(OrderKafkaTxMsgCongfig.ORDER_TOPIC));
+        consumer.subscribe(Collections.singletonList(OrderKafkaTxMsgConfig.ORDER_TOPIC));
         System.out.println("Kafka consumer started, listening to 'order-events' topic");
 
         try {

@@ -1,6 +1,6 @@
 package com.damon.order.demo.consumer;
 
-import com.damon.order.demo.config.OrderRocketTxMsgCongfig;
+import com.damon.order.demo.config.OrderRocketTxMsgConfig;
 import org.apache.rocketmq.client.consumer.DefaultMQPushConsumer;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyContext;
 import org.apache.rocketmq.client.consumer.listener.ConsumeConcurrentlyStatus;
@@ -31,9 +31,9 @@ public class OrderRocketEventConsumer {
         DefaultMQPushConsumer consumer = new DefaultMQPushConsumer("order_consumer_group");
         consumer.setConsumeFromWhere(ConsumeFromWhere.CONSUME_FROM_LAST_OFFSET);
         // 2. 设置 NameServer 地址（集群环境用逗号分隔）
-        consumer.setNamesrvAddr(OrderRocketTxMsgCongfig.ROCKETMQ_SERVER);
+        consumer.setNamesrvAddr(OrderRocketTxMsgConfig.ROCKETMQ_SERVER);
         // 3. 订阅 Topic 和 Tag（* 表示所有 Tag，也可指定具体 Tag 如 "create,paid"）
-        consumer.subscribe(OrderRocketTxMsgCongfig.ORDER_TOPIC, "test");
+        consumer.subscribe(OrderRocketTxMsgConfig.ORDER_TOPIC, "test");
         // 4. 注册消息监听器（并发消费）
         consumer.registerMessageListener(new MessageListenerConcurrently() {
             @Override

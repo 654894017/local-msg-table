@@ -9,7 +9,6 @@ import com.damon.localmsgtx.utils.StrUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationAdapter;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.util.Assert;
 
@@ -93,7 +92,7 @@ public class DefaultTxMsgClient implements ITxMsgClient {
      */
     private void registerTransactionCallback(TxMsgModel txMsg) {
         // Register post-transaction-commit callback
-        TransactionSynchronization synchronization = new TransactionSynchronizationAdapter() {
+        TransactionSynchronization synchronization = new TransactionSynchronization() {
             @Override
             public void afterCommit() {
                 logger.debug("Transaction committed, preparing to send message, msgId: {}", txMsg.getId());
