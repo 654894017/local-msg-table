@@ -1,9 +1,13 @@
 package com.damon.order.demo;
 
-import com.damon.localmsgtx.utils.ShardTailNumber;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
 
+/**
+ * 订单API控制器
+ * <p>
+ * 提供订单创建、消息补偿重发和过期清理的HTTP接口。
+ */
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
@@ -27,14 +31,11 @@ public class OrderController {
     }
 
     /**
-     * 手动触发重发失败的消息
+     * 手动触发补偿重发
      */
     @PostMapping("/resend")
     public String resendWaitingTxMsg() {
-        ShardTailNumber shardTailNumber = new ShardTailNumber(1, 0, 1);
-        shardTailNumber.generateTailNumbers().forEach(
-                orderService::resendWaitingTxMsg
-        );
+        orderService.resendWaitingTxMsg();
         return "Resend task triggered";
     }
 

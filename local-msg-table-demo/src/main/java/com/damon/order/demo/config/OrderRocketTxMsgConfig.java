@@ -9,14 +9,15 @@ import org.springframework.context.annotation.Configuration;
 
 import javax.sql.DataSource;
 
+/**
+ * RocketMQ事务消息客户端配置
+ */
 @Configuration
 public class OrderRocketTxMsgConfig {
+
     public static final String ORDER_TOPIC = "order_events";
-
     public static final String ROCKETMQ_SERVER = "localhost:9876";
-
     public static final String ORDER_GROUP = "order_group";
-
     public static final String ROCKET_TX_MSG_TABLE = "rocket_transactional_messages";
 
     @Bean("rocketTxMsgClient")

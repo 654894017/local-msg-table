@@ -12,11 +12,15 @@ import java.time.Duration;
 import java.util.Collections;
 import java.util.Properties;
 
+/**
+ * Kafka订单事件消费者（演示用）
+ * <p>
+ * 在后台线程中监听order_events主题，消费订单事务消息。
+ */
 @Component
 public class OrderKafkaEventConsumer {
 
     public OrderKafkaEventConsumer() {
-        // 在后台线程中启动消费者
         new Thread(this::consumeMessages).start();
     }
 
@@ -27,15 +31,16 @@ public class OrderKafkaEventConsumer {
         props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class);
         props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest");
+
         KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
         consumer.subscribe(Collections.singletonList(OrderKafkaTxMsgConfig.ORDER_TOPIC));
-        System.out.println("Kafka consumer started, listening to 'order-events' topic");
+        System.out.println("Kafka consumer started, listening to 'order_events' topic");
 
         try {
             while (true) {
                 ConsumerRecords<String, String> records = consumer.poll(Duration.ofMillis(1000));
                 for (ConsumerRecord<String, String> record : records) {
-                    System.out.printf("Kafka received message - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
+                    System.out.printf("Kafka received - Topic: %s, Partition: %d, Offset: %d, Key: %s, Value: %s%n",
                             record.topic(), record.partition(), record.offset(), record.key(), record.value());
                 }
                 if (!records.isEmpty()) {

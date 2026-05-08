@@ -9,21 +9,34 @@ import org.apache.rocketmq.client.producer.DefaultMQProducer;
 import javax.sql.DataSource;
 import java.util.concurrent.ExecutorService;
 
+/**
+ * RocketMQ事务消息配置工厂
+ * <p>
+ * 提供快速创建RocketMQ事务消息客户端配置的便捷方法。
+ */
 public class TxMsgRocketConfigFactory {
 
-    private final static int RANMON_FACTOR_LENGTH = 6;
+    /**
+     * 随机因子位数（用于分片路由）
+     */
+    private static final int RANDOM_FACTOR_LENGTH = 6;
 
-    public static TxMsgConfig simpleConfig(String namesrvAddr, String topic, String producerGroup, DataSource dataSource, String txMsgTableName) {
-
+    /**
+     * 创建简单配置（使用默认参数）
+     *
+     * @param namesrvAddr    NameServer地址
+     * @param topic          消息主题
+     * @param producerGroup  生产者组名
+     * @param dataSource     数据源
+     * @param txMsgTableName 事务消息表名
+     * @return 事务消息配置
+     */
+    public static TxMsgConfig simpleConfig(String namesrvAddr, String topic, String producerGroup,
+                                           DataSource dataSource, String txMsgTableName) {
         ExecutorService asyncSendExecutor = TxMsgSenderThreadPoolFactory.simpleThreadPool();
-
         DefaultMQProducer producer = RocketProducerFactory.simpleProducer(namesrvAddr, producerGroup);
-
-        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic, RANMON_FACTOR_LENGTH);
-
+        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic, RANDOM_FACTOR_LENGTH);
         AbstractTxMsgHandler txMsgHandler = new RocketTxMsgHandler(producer, txMsgSqlStore);
-
         return new TxMsgConfig(asyncSendExecutor, txMsgHandler);
-
     }
 }

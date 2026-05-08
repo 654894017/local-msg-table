@@ -1,25 +1,42 @@
 package com.damon.localmsgtx.utils;
 
-
 import java.util.ArrayList;
 import java.util.List;
 
 /**
  * 分片尾号生成器
- * 用于生成特定分片下的任务ID尾号列表
+ * <p>
+ * 根据总分片数和当前分片索引，生成当前分片应处理的尾号列表。
+ * 用于分布式定时任务的分片路由，每个分片只处理其对应尾号的消息。
+ * <p>
+ * 示例：总分片3，当前分片0，尾号长度2 → 生成 ["00", "03", "06", ..., "99"]
  */
 public class ShardTailNumber {
-    private final int shardTotal;    // 总分片数
-    private final int shardIndex;    // 当前分片索引（0-based）
-    private final int tailLength;    // 尾号长度
-    private final int maxTailNumber; // 最大尾号值（如尾号长度为2，则最大为99）
 
     /**
-     * 构造函数
-     *
-     * @param shardTotal 总分片数
-     * @param shardIndex 当前分片索引（0-based）
-     * @param tailLength 尾号长度
+     * 总分片数
+     */
+    private final int shardTotal;
+
+    /**
+     * 当前分片索引（0-based）
+     */
+    private final int shardIndex;
+
+    /**
+     * 尾号位数
+     */
+    private final int tailLength;
+
+    /**
+     * 最大尾号值（如尾号长度为2，则最大为99）
+     */
+    private final int maxTailNumber;
+
+    /**
+     * @param shardTotal 总分片数（必须大于0）
+     * @param shardIndex 当前分片索引（0-based，必须小于shardTotal）
+     * @param tailLength 尾号位数（必须大于0）
      */
     public ShardTailNumber(int shardTotal, int shardIndex, int tailLength) {
         if (shardTotal <= 0 || shardIndex < 0 || shardIndex >= shardTotal || tailLength <= 0) {
@@ -31,9 +48,8 @@ public class ShardTailNumber {
         this.maxTailNumber = (int) Math.pow(10, tailLength) - 1;
     }
 
-
     /**
-     * 生成当前分片的尾号列表
+     * 生成当前分片负责的尾号列表
      *
      * @return 尾号列表（如 ["00", "03", "06", ...]）
      */
@@ -47,7 +63,6 @@ public class ShardTailNumber {
         return tailNumbers;
     }
 
-    // 其他可能的方法：获取总分片数、当前分片索引等
     public int getShardTotal() {
         return shardTotal;
     }
@@ -55,6 +70,4 @@ public class ShardTailNumber {
     public int getShardIndex() {
         return shardIndex;
     }
-
-
 }

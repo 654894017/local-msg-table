@@ -1,44 +1,57 @@
 package com.damon.localmsgtx.model;
 
+/**
+ * 事务消息模型
+ * <p>
+ * 对应数据库事务消息表的实体映射。
+ */
 public class TxMsgModel {
 
     /**
-     * 主键
+     * 主键ID
      */
     private Long id;
+
     /**
-     * 消息key
+     * 消息唯一标识（用于幂等性处理）
      */
     private String msgKey;
 
     /**
-     * 事务消息
+     * 消息内容（JSON格式或字符串）
      */
     private String content;
 
     /**
-     * 主题
+     * 消息主题
      */
     private String topic;
+
     /**
-     * 标签
+     * 消息标签（RocketMQ Tag过滤使用）
      */
     private String msgTag;
 
     /**
-     * 状态：1-等待，2-发送
+     * 消息状态：0-等待发送，1-已发送，2-发送失败
+     *
+     * @see TxMsgStatusEnum
      */
     private int status;
 
     /**
-     * 随机因子(定时任务分片使用)
+     * 重试次数（发送失败时累加）
      */
-    private String randomFactor;
+    private int retryCount;
+
     /**
-     * 创建时间
+     * 创建时间（毫秒时间戳）
      */
     private long createTime;
 
+    /**
+     * 更新时间（毫秒时间戳）
+     */
     private Long updateTime;
 
     public Long getId() {
@@ -97,19 +110,19 @@ public class TxMsgModel {
         this.updateTime = updateTime;
     }
 
-    public String getRandomFactor() {
-        return randomFactor;
-    }
-
-    public void setRandomFactor(String randomFactor) {
-        this.randomFactor = randomFactor;
-    }
-
     public String getMsgTag() {
         return msgTag;
     }
 
     public void setMsgTag(String msgTag) {
         this.msgTag = msgTag;
+    }
+
+    public int getRetryCount() {
+        return retryCount;
+    }
+
+    public void setRetryCount(int retryCount) {
+        this.retryCount = retryCount;
     }
 }

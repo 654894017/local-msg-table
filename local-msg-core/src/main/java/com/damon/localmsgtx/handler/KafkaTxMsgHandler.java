@@ -1,5 +1,6 @@
 package com.damon.localmsgtx.handler;
 
+import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
@@ -14,52 +15,54 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Transactional message handler
- * Responsible for message sending, retry sending, and cleaning up expired sent messages
+ * 基于Kafka的事务消息处理器
+ * <p>
+ * 支持单条异步发送和批量发送，发送失败时累加重试次数。
  */
 public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
-    private static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgHandler.class);
 
+    private static final Logger logger = LoggerFactory.getLogger(KafkaTxMsgHandler.class);
 
     private final KafkaProducer<String, String> kafkaProducer;
 
     /**
-     * Full parameter constructor (recommended, supports custom configuration)
+     * 全参构造器
      *
-     * @param kafkaProducer       Kafka producer instance
-     * @param txMsgSqlStore       Transactional message storage manager
-     * @param fetchLimit          Number of pending messages to fetch in a single request
-     * @param maxResendNumPerTask Maximum number of messages to resend in a single task
-     * @param deleteBatchSize     Batch size for deletion
-     * @param exceptionSleep      Sleep time after an exception occurs
+     * @param kafkaProducer       Kafka生产者实例
+     * @param txMsgSqlStore       事务消息存储
+     * @param fetchLimit          单次查询待发送消息条数
+     * @param maxResendNumPerTask 单次重发任务最大处理消息数
+     * @param deleteBatchSize     过期消息批量删除大小
+     * @param exceptionSleep      异常后休眠时间（秒）
+     * @param maxRetryCount       最大重试次数
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore,
                              int fetchLimit,
                              int maxResendNumPerTask,
                              int deleteBatchSize,
-                             int exceptionSleep) {
-        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask, exceptionSleep);
-        // Parameter validation
+                             int exceptionSleep,
+                             int maxRetryCount) {
+        super(deleteBatchSize, txMsgSqlStore, fetchLimit, maxResendNumPerTask, exceptionSleep, maxRetryCount);
         Assert.notNull(kafkaProducer, "KafkaProducer cannot be null");
         this.kafkaProducer = kafkaProducer;
     }
 
     /**
-     * Simplified constructor (using default configuration)
-     * Suitable for quick initialization with default values:
-     * - Fetch 50 messages at a time
-     * - Maximum 2000 messages per resend task
-     * - Delete batch size of 200
-     * - Exception sleep time of 5 seconds
+     * 简化构造器（使用默认配置）
+     * <p>
+     * 默认值：fetchLimit=50, maxResendNumPerTask=2000, deleteBatchSize=200,
+     * exceptionSleep=5s, maxRetryCount=5
      */
     public KafkaTxMsgHandler(KafkaProducer<String, String> kafkaProducer,
                              TxMsgSqlStore txMsgSqlStore) {
-        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 5);
+        this(kafkaProducer, txMsgSqlStore, 50, 2000, 200, 5, 5);
     }
 
     /**
-     * Actually execute single message sending logic
+     * 单条消息发送（异步回调）
+     * <p>
+     * 发送成功更新状态为已发送，发送失败抛出异常由上层处理。
      */
     @Override
     protected void sendMessage(TxMsgModel txMsgModel) {
@@ -68,65 +71,65 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         String content = txMsgModel.getContent();
         Long msgId = txMsgModel.getId();
         try {
-            // Build Kafka message
             ProducerRecord<String, String> record = new ProducerRecord<>(topic, msgKey, content);
             kafkaProducer.send(record, (metadata, exception) -> {
                 if (exception == null) {
-                    logger.debug("Message sent successfully [msgId: {}, topic: {}, partition: {}, offset: {}]",
+                    logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
                             msgId, metadata.topic(), metadata.partition(), metadata.offset());
                     int updateRows = txMsgSqlStore.updateSendMsg(txMsgModel);
                     if (updateRows <= 0) {
-                        logger.warn("Message status update failed, corresponding record not found [msgId: {}]", msgId);
+                        logger.warn("消息状态更新失败，记录不存在 [msgId: {}]", msgId);
                     }
-                } else {
-                    logger.error("Message sending failed [msgId: {}, topic: {}]", msgId, topic, exception);
                 }
             });
         } catch (Exception e) {
-            logger.error("Message sending execution exception [msgId: {}, topic: {}]", msgId, topic, e);
+            String errorMsg = String.format("消息发送失败 [msgId: %s, topic: %s", msgId, topic);
+            throw new TxMsgException(errorMsg, e);
         }
     }
 
     /**
-     * Actually execute batch message sending logic
+     * 批量消息发送
+     * <p>
+     * 通过Kafka异步回调收集发送结果，然后批量更新成功消息的状态，
+     * 失败消息累加重试次数。
      */
     @Override
     protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
         if (ListUtils.isEmpty(txMsgModels)) {
             return;
         }
-        // Process sending results and collect successful message IDs
         final List<Long> successMsgIds = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
         final List<Long> failedMsgIds = Collections.synchronizedList(new ArrayList<>());
-        // Use callback for async processing
+
         txMsgModels.forEach(model -> {
             ProducerRecord<String, String> record = new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
             kafkaProducer.send(record, (metadata, exception) -> {
                 if (exception == null) {
-                    logger.debug("Batch message sent successfully [msgId: {}, topic: {}]", model.getId(), model.getTopic());
+                    logger.debug("批量消息发送成功 [msgId: {}, topic: {}]", model.getId(), model.getTopic());
                     successMsgIds.add(model.getId());
                 } else {
-                    logger.error("Batch message sending failed [msgId: {}, topic: {}]", model.getId(), model.getTopic(), exception);
+                    logger.error("批量消息发送失败 [msgId: {}, topic: {}]", model.getId(), model.getTopic(), exception);
                     failedMsgIds.add(model.getId());
                 }
             });
         });
-        // Wait for all messages to be sent
+
+        // 等待所有消息发送完毕
         kafkaProducer.flush();
+
+        // 失败消息累加重试次数
+        for (Long failedMsgId : failedMsgIds) {
+            txMsgSqlStore.incrementRetryCount(failedMsgId);
+        }
+
+        // 批量更新成功消息状态
         if (ListUtils.isNotEmpty(successMsgIds)) {
-            // Batch update status of successfully sent messages
             int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
-            logger.info("Batch message status update completed, should update: {}, actually updated: {}", successMsgIds.size(), updateRows);
+            logger.info("批量更新消息状态完成, 应更新: {}, 实际更新: {}", successMsgIds.size(), updateRows);
             if (updateRows != successMsgIds.size()) {
-                logger.warn("Some message status updates failed, expected to update: {}, actually updated: {}", successMsgIds.size(), updateRows);
+                logger.warn("部分消息状态更新失败, 预期: {}, 实际: {}", successMsgIds.size(), updateRows);
             }
         }
-
-        if (ListUtils.isNotEmpty(failedMsgIds)) {
-            String topic = txMsgModels.get(0).getTopic();
-            logger.error("Kafka topic:{}, batch message sending failed, failed message IDs: {}", topic, failedMsgIds);
-        }
-
-
     }
 }
