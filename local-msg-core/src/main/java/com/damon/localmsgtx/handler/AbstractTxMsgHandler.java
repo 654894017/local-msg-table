@@ -3,11 +3,12 @@ package com.damon.localmsgtx.handler;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
+import com.damon.localmsgtx.utils.ListUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.Assert;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -95,7 +96,7 @@ public abstract class AbstractTxMsgHandler {
     /**
      * 发送单条事务消息
      * <p>
-     * 事务提交后调用，若发送失败则标记为SEND_FAILED，等待补偿重发。
+     * 事务提交后调用，若发送失败则通过领域方法标记为SEND_FAILED并持久化。
      *
      * @param txMsgModel 事务消息模型
      */
@@ -107,7 +108,8 @@ public abstract class AbstractTxMsgHandler {
             sendMessage(txMsgModel);
         } catch (Exception e) {
             logger.error("消息发送失败 [msgId: {}, topic: {}]", txMsgModel.getId(), txMsgModel.getTopic(), e);
-            txMsgSqlStore.updateToSendFailed(txMsgModel.getId());
+            txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
+            txMsgSqlStore.save(txMsgModel);
         }
     }
 
@@ -133,27 +135,15 @@ public abstract class AbstractTxMsgHandler {
             totalProcessed += currentFetchNum;
 
             if (currentFetchNum == 0) {
-                logger.debug("无待重发消息");
                 break;
             }
 
-            // 过滤超过最大重试次数的消息，标记为发送失败
-            List<TxMsgModel> retryableMessages = new ArrayList<>();
-            for (TxMsgModel msg : waitingMessages) {
-                if (msg.getRetryCount() >= maxRetryCount) {
-                    logger.warn("消息超过最大重试次数，标记为发送失败 [msgId: {}, retryCount: {}, maxRetryCount: {}]",
-                            msg.getId(), msg.getRetryCount(), maxRetryCount);
-                    txMsgSqlStore.updateToSendFailed(msg.getId());
-                } else {
-                    retryableMessages.add(msg);
-                }
-            }
 
             logger.info("批量处理消息, 查询: {}, 可重试: {}, 累计处理: {}",
-                    currentFetchNum, retryableMessages.size(), totalProcessed);
+                    currentFetchNum, waitingMessages.size(), totalProcessed);
 
-            if (!retryableMessages.isEmpty()) {
-                doBatchSendMessages(retryableMessages);
+            if (ListUtils.isNotEmpty(waitingMessages)) {
+                doBatchSendMessages(waitingMessages);
             }
 
             maxId = waitingMessages.get(currentFetchNum - 1).getId();

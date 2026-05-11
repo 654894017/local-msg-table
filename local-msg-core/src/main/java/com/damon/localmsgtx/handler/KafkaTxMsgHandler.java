@@ -4,6 +4,7 @@ import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
+import org.apache.commons.lang3.exception.ExceptionUtils;
 import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.slf4j.Logger;
@@ -17,7 +18,7 @@ import java.util.List;
 /**
  * 基于Kafka的事务消息处理器
  * <p>
- * 支持单条异步发送和批量发送，发送失败时累加重试次数。
+ * 支持单条异步发送和批量发送，通过充血模型完成状态变更后统一持久化。
  */
 public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
 
@@ -62,7 +63,7 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
     /**
      * 单条消息发送（异步回调）
      * <p>
-     * 发送成功更新状态为已发送，发送失败抛出异常由上层处理。
+     * 发送成功标记为已发送并持久化，发送失败抛出异常由上层处理。
      */
     @Override
     protected void sendMessage(TxMsgModel txMsgModel) {
@@ -76,9 +77,10 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
                 if (exception == null) {
                     logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
                             msgId, metadata.topic(), metadata.partition(), metadata.offset());
-                    int updateRows = txMsgSqlStore.updateSendMsg(txMsgModel);
-                    if (updateRows <= 0) {
-                        logger.warn("消息状态更新失败，记录不存在 [msgId: {}]", msgId);
+                    txMsgModel.markAsSent();
+                    int rows = txMsgSqlStore.save(txMsgModel);
+                    if (rows <= 0) {
+                        logger.warn("消息状态保存失败（版本冲突）[msgId: {}]", msgId);
                     }
                 }
             });
@@ -91,26 +93,27 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
     /**
      * 批量消息发送
      * <p>
-     * 通过Kafka异步回调收集发送结果，然后批量更新成功消息的状态，
-     * 失败消息累加重试次数。
+     * 通过Kafka异步回调收集发送结果，成功消息标记为已发送，
+     * 失败消息累加重试次数，统一通过 save 持久化。
      */
     @Override
     protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
         if (ListUtils.isEmpty(txMsgModels)) {
             return;
         }
-        final List<Long> successMsgIds = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
-        final List<Long> failedMsgIds = Collections.synchronizedList(new ArrayList<>());
+        final List<TxMsgModel> models = Collections.synchronizedList(new ArrayList<>(txMsgModels.size()));
 
         txMsgModels.forEach(model -> {
             ProducerRecord<String, String> record = new ProducerRecord<>(model.getTopic(), model.getMsgKey(), model.getContent());
             kafkaProducer.send(record, (metadata, exception) -> {
                 if (exception == null) {
                     logger.debug("批量消息发送成功 [msgId: {}, topic: {}]", model.getId(), model.getTopic());
-                    successMsgIds.add(model.getId());
+                    model.markAsSent();
+                    models.add(model);
                 } else {
                     logger.error("批量消息发送失败 [msgId: {}, topic: {}]", model.getId(), model.getTopic(), exception);
-                    failedMsgIds.add(model.getId());
+                    model.incrementRetry(ExceptionUtils.getMessage(exception));
+                    models.add(model);
                 }
             });
         });
@@ -118,18 +121,8 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         // 等待所有消息发送完毕
         kafkaProducer.flush();
 
-        // 失败消息累加重试次数
-        for (Long failedMsgId : failedMsgIds) {
-            txMsgSqlStore.incrementRetryCount(failedMsgId);
-        }
-
-        // 批量更新成功消息状态
-        if (ListUtils.isNotEmpty(successMsgIds)) {
-            int updateRows = txMsgSqlStore.batchUpdateSendMsg(successMsgIds);
-            logger.info("批量更新消息状态完成, 应更新: {}, 实际更新: {}", successMsgIds.size(), updateRows);
-            if (updateRows != successMsgIds.size()) {
-                logger.warn("部分消息状态更新失败, 预期: {}, 实际: {}", successMsgIds.size(), updateRows);
-            }
+        for (TxMsgModel model : models) {
+            txMsgSqlStore.save(model);
         }
     }
 }
