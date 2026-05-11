@@ -2,6 +2,8 @@ package com.damon.localmsgtx.model;
 
 import com.damon.localmsgtx.utils.StrUtil;
 
+import java.util.Objects;
+
 /**
  * 事务消息领域模型（充血模型）
  * <p>
@@ -101,12 +103,13 @@ public class TxMsgModel {
         return model;
     }
 
-    // ==================== 领域行为方法 ====================
-
     /**
      * 标记消息为已发送
      */
     public void markAsSent() {
+        if (Objects.equals(TxMsgStatusEnum.SEND_FAILED.getStatus(), this.status)) {
+            this.retryCount++;
+        }
         this.status = TxMsgStatusEnum.SENT.getStatus();
         this.updateTime = System.currentTimeMillis();
         this.remark = StrUtil.EMPTY;
@@ -124,28 +127,16 @@ public class TxMsgModel {
     }
 
     /**
-     * 标记消息为发送失败（终态，不再重试）
+     * 标记消息为发送失败
      *
      * @param failReason 失败原因
      */
     public void markAsSendFailed(String failReason) {
         this.status = TxMsgStatusEnum.SEND_FAILED.getStatus();
-        this.retryCount++;
         this.remark = truncateRemark(failReason);
         this.updateTime = System.currentTimeMillis();
     }
 
-    /**
-     * 判断是否已超过最大重试次数
-     *
-     * @param maxRetryCount 最大重试次数
-     * @return true表示已耗尽重试机会
-     */
-    public boolean isRetryExhausted(int maxRetryCount) {
-        return this.retryCount >= maxRetryCount;
-    }
-
-    // ==================== 私有方法 ====================
 
     private String truncateRemark(String remark) {
         if (remark == null) {
@@ -153,8 +144,6 @@ public class TxMsgModel {
         }
         return remark.length() > MAX_REMARK_LENGTH ? remark.substring(0, MAX_REMARK_LENGTH) : remark;
     }
-
-    // ==================== Getter/Setter ====================
 
     public Long getId() {
         return id;

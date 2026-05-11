@@ -25,32 +25,32 @@ public abstract class AbstractTxMsgHandler {
     /**
      * 过期消息批量删除大小
      */
-    protected final int deleteBatchSize;
+    private final int deleteBatchSize;
 
     /**
      * 事务消息持久化存储
      */
-    protected final TxMsgSqlStore txMsgSqlStore;
+    private final TxMsgSqlStore txMsgSqlStore;
 
     /**
      * 单次查询待发送消息的最大条数
      */
-    protected final int fetchLimit;
+    private final int fetchLimit;
 
     /**
      * 单次重发任务处理消息的上限（防止任务执行过久）
      */
-    protected final int maxResendNumPerTask;
+    private final int maxResendNumPerTask;
 
     /**
      * 批量发送异常后的休眠时间（秒）
      */
-    protected final int exceptionSleep;
+    private final int exceptionSleep;
 
     /**
      * 最大重试次数，超过后标记为发送失败
      */
-    protected final int maxRetryCount;
+    private final int maxRetryCount;
 
     protected AbstractTxMsgHandler(int deleteBatchSize, TxMsgSqlStore txMsgSqlStore, int fetchLimit,
                                    int maxResendNumPerTask, int exceptionSleep, int maxRetryCount) {
@@ -106,6 +106,10 @@ public abstract class AbstractTxMsgHandler {
         Assert.hasText(txMsgModel.getContent(), "消息内容不能为空");
         try {
             sendMessage(txMsgModel);
+            int rows = txMsgSqlStore.save(txMsgModel);
+            if (rows <= 0) {
+                logger.warn("消息状态保存失败（版本冲突）[msgId: {}]", txMsgModel.getId());
+            }
         } catch (Exception e) {
             logger.error("消息发送失败 [msgId: {}, topic: {}]", txMsgModel.getId(), txMsgModel.getTopic(), e);
             txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
@@ -138,9 +142,7 @@ public abstract class AbstractTxMsgHandler {
                 break;
             }
 
-
-            logger.info("批量处理消息, 查询: {}, 可重试: {}, 累计处理: {}",
-                    currentFetchNum, waitingMessages.size(), totalProcessed);
+            logger.info("批量处理消息, 查询: {}, 可重试: {}, 累计处理: {}", currentFetchNum, waitingMessages.size(), totalProcessed);
 
             if (ListUtils.isNotEmpty(waitingMessages)) {
                 doBatchSendMessages(waitingMessages);
@@ -159,6 +161,9 @@ public abstract class AbstractTxMsgHandler {
     private void doBatchSendMessages(List<TxMsgModel> txMsgModels) {
         try {
             batchSendMessages(txMsgModels);
+            txMsgModels.forEach(model -> {
+                txMsgSqlStore.save(model);
+            });
         } catch (Exception e) {
             logger.error("批量发送消息异常, 休眠 {}s", exceptionSleep, e);
             try {

@@ -1,6 +1,5 @@
 package com.damon.localmsgtx.handler;
 
-import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
@@ -72,6 +71,7 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
     protected void sendMessage(TxMsgModel txMsgModel) {
         String topic = txMsgModel.getTopic();
         Long msgId = txMsgModel.getId();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         try {
             Message message = convertToRocketMessage(txMsgModel);
             rocketProducer.send(message, new SendCallback() {
@@ -80,24 +80,23 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
                     logger.debug("消息发送成功 [msgId: {}, topic: {}, messageId: {}, queueId: {}]",
                             msgId, topic, sendResult.getMsgId(), sendResult.getMessageQueue().getQueueId());
                     txMsgModel.markAsSent();
-                    int rows = txMsgSqlStore.save(txMsgModel);
-                    if (rows <= 0) {
-                        logger.warn("消息状态保存失败（版本冲突）[msgId: {}]", msgId);
-                    }
+                    future.complete(true);
                 }
 
                 @Override
                 public void onException(Throwable e) {
                     logger.error("消息发送失败 [msgId: {}, topic: {}]", msgId, topic, e);
-                    txMsgModel.incrementRetry(e.getMessage());
-                    txMsgSqlStore.save(txMsgModel);
+                    txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
+                    future.complete(true);
                 }
             });
         } catch (Exception e) {
             logger.error("消息发送异常 [msgId: {}, topic: {}]", msgId, topic, e);
-            txMsgModel.incrementRetry(e.getMessage());
-            txMsgSqlStore.save(txMsgModel);
+            txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
+            future.complete(true);
         }
+
+        future.join();
     }
 
     /**
@@ -107,47 +106,39 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
      * 失败消息累加重试次数，统一通过 save 持久化。
      */
     @Override
-    protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
-        if (ListUtils.isEmpty(txMsgModels)) {
+    protected void batchSendMessages(List<TxMsgModel> models) {
+        if (ListUtils.isEmpty(models)) {
             return;
         }
 
-        List<CompletableFuture<SendResultHolder>> futures = txMsgModels.stream().map(msg -> {
-            Message message = convertToRocketMessage(msg);
-            CompletableFuture<SendResultHolder> future = new CompletableFuture<>();
+        List<CompletableFuture<Boolean>> futures = models.stream().map(model -> {
+            Message message = convertToRocketMessage(model);
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
             try {
                 rocketProducer.send(message, new SendCallback() {
                     @Override
                     public void onSuccess(SendResult sendResult) {
-                        future.complete(SendResultHolder.success(msg));
+                        model.markAsSent();
+                        future.complete(true);
                     }
 
                     @Override
                     public void onException(Throwable e) {
-                        logger.error("批量消息发送失败 [msgId: {}, topic: {}]", msg.getId(), message.getTopic(), e);
-                        future.complete(SendResultHolder.failure(msg, ExceptionUtils.getStackTrace(e)));
+                        logger.error("批量消息发送失败 [msgId: {}, topic: {}]", model.getId(), message.getTopic(), e);
+                        model.incrementRetry(ExceptionUtils.getStackTrace(e));
+                        future.complete(false);
                     }
                 });
             } catch (Throwable e) {
-                throw new TxMsgException(e);
+                logger.error("消息发送失败 [msgId: {}, topic: {}]", model.getId(), message.getTopic(), e);
+                model.incrementRetry(ExceptionUtils.getStackTrace(e));
+                future.complete(true);
             }
             return future;
         }).collect(Collectors.toList());
 
         // 等待所有发送完成
-        List<SendResultHolder> results = futures.stream().map(CompletableFuture::join).collect(Collectors.toList());
-
-        // 成功消息标记为已发送并持久化
-        results.stream().filter(SendResultHolder::isSuccess).forEach(r -> {
-            r.getModel().markAsSent();
-            txMsgSqlStore.save(r.getModel());
-        });
-
-        // 失败消息累加重试次数并持久化
-        results.stream().filter(r -> !r.isSuccess()).forEach(r -> {
-            r.getModel().incrementRetry(r.getFailReason());
-            txMsgSqlStore.save(r.getModel());
-        });
+        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
     }
 
     /**
@@ -162,38 +153,4 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
         return message;
     }
 
-    /**
-     * 发送结果持有者（用于异步回调结果收集）
-     */
-    private static class SendResultHolder {
-        private final boolean success;
-        private final TxMsgModel model;
-        private final String failReason;
-
-        private SendResultHolder(boolean success, TxMsgModel model, String failReason) {
-            this.success = success;
-            this.model = model;
-            this.failReason = failReason;
-        }
-
-        static SendResultHolder success(TxMsgModel model) {
-            return new SendResultHolder(true, model, null);
-        }
-
-        static SendResultHolder failure(TxMsgModel model, String failReason) {
-            return new SendResultHolder(false, model, failReason);
-        }
-
-        boolean isSuccess() {
-            return success;
-        }
-
-        TxMsgModel getModel() {
-            return model;
-        }
-
-        String getFailReason() {
-            return failReason;
-        }
-    }
 }

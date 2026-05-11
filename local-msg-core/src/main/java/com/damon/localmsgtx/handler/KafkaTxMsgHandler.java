@@ -1,6 +1,5 @@
 package com.damon.localmsgtx.handler;
 
-import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.store.TxMsgSqlStore;
 import com.damon.localmsgtx.utils.ListUtils;
@@ -14,6 +13,7 @@ import org.springframework.util.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * 基于Kafka的事务消息处理器
@@ -71,23 +71,28 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         String msgKey = txMsgModel.getMsgKey();
         String content = txMsgModel.getContent();
         Long msgId = txMsgModel.getId();
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
         try {
             ProducerRecord<String, String> record = new ProducerRecord<>(topic, msgKey, content);
             kafkaProducer.send(record, (metadata, exception) -> {
-                if (exception == null) {
-                    logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
-                            msgId, metadata.topic(), metadata.partition(), metadata.offset());
-                    txMsgModel.markAsSent();
-                    int rows = txMsgSqlStore.save(txMsgModel);
-                    if (rows <= 0) {
-                        logger.warn("消息状态保存失败（版本冲突）[msgId: {}]", msgId);
+                try {
+                    if (exception == null) {
+                        logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
+                                msgId, metadata.topic(), metadata.partition(), metadata.offset());
+                        txMsgModel.markAsSent();
+                    } else {
+                        txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(exception));
                     }
+                } finally {
+                    future.complete(true);
                 }
             });
         } catch (Exception e) {
-            String errorMsg = String.format("消息发送失败 [msgId: %s, topic: %s", msgId, topic);
-            throw new TxMsgException(errorMsg, e);
+            logger.error("消息发送失败 [msgId: {}, topic: {}", msgId, topic, e);
+            txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
+            future.complete(true);
         }
+        future.join();
     }
 
     /**
@@ -120,9 +125,5 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
 
         // 等待所有消息发送完毕
         kafkaProducer.flush();
-
-        for (TxMsgModel model : models) {
-            txMsgSqlStore.save(model);
-        }
     }
 }
