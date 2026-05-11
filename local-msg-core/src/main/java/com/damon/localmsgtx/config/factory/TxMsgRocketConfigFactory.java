@@ -17,11 +17,6 @@ import java.util.concurrent.ExecutorService;
 public class TxMsgRocketConfigFactory {
 
     /**
-     * 随机因子位数（用于分片路由）
-     */
-    private static final int RANDOM_FACTOR_LENGTH = 6;
-
-    /**
      * 创建简单配置（使用默认参数）
      *
      * @param namesrvAddr    NameServer地址
@@ -35,7 +30,7 @@ public class TxMsgRocketConfigFactory {
                                            DataSource dataSource, String txMsgTableName) {
         ExecutorService asyncSendExecutor = TxMsgSenderThreadPoolFactory.simpleThreadPool();
         DefaultMQProducer producer = RocketProducerFactory.simpleProducer(namesrvAddr, producerGroup);
-        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic, RANDOM_FACTOR_LENGTH);
+        TxMsgSqlStore txMsgSqlStore = new TxMsgSqlStore(dataSource, txMsgTableName, topic);
         AbstractTxMsgHandler txMsgHandler = new RocketTxMsgHandler(producer, txMsgSqlStore);
         return new TxMsgConfig(asyncSendExecutor, txMsgHandler);
     }

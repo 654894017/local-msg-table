@@ -5,7 +5,6 @@ import com.damon.localmsgtx.exception.TxMsgException;
 import com.damon.localmsgtx.exception.TxMsgStoreException;
 import com.damon.localmsgtx.model.TxMsgModel;
 import com.damon.localmsgtx.model.TxMsgStatusEnum;
-import com.damon.localmsgtx.utils.RandomNumber;
 import com.damon.localmsgtx.utils.StrUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,24 +71,21 @@ public class TxMsgSqlStore {
     private final String tableName;
     private final JdbcTemplate jdbcTemplate;
     private final String topic;
-    private final RandomNumber randomNumber;
 
     /**
      * 构造函数
      *
-     * @param dataSource         数据源
-     * @param tableName          消息存储表名
-     * @param topic              消息主题
-     * @param randomFactorLength 随机因子位数（用于分片路由）
+     * @param dataSource 数据源
+     * @param tableName  消息存储表名
+     * @param topic      消息主题
      */
-    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic, int randomFactorLength) {
+    public TxMsgSqlStore(DataSource dataSource, String tableName, String topic) {
         Assert.notNull(dataSource, "DataSource cannot be null");
         Assert.hasText(topic, "Topic cannot be empty");
         Assert.hasText(tableName, "Table name cannot be empty");
         this.jdbcTemplate = new JdbcTemplate(dataSource);
         this.tableName = tableName;
         this.topic = topic;
-        this.randomNumber = new RandomNumber(randomFactorLength);
         initializeTable();
     }
 
