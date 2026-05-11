@@ -13,6 +13,7 @@ import org.springframework.util.Assert;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -75,22 +76,19 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
         try {
             ProducerRecord<String, String> record = new ProducerRecord<>(topic, msgKey, content);
             kafkaProducer.send(record, (metadata, exception) -> {
-                try {
-                    if (exception == null) {
-                        logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
-                                msgId, metadata.topic(), metadata.partition(), metadata.offset());
-                        txMsgModel.markAsSent();
-                    } else {
-                        txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(exception));
-                    }
-                } finally {
-                    future.complete(true);
+                if (exception == null) {
+                    logger.debug("消息发送成功 [msgId: {}, topic: {}, partition: {}, offset: {}]",
+                            msgId, metadata.topic(), metadata.partition(), metadata.offset());
+                    txMsgModel.markAsSent();
+                } else {
+                    txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(exception));
                 }
+                future.complete(Objects.isNull(exception));
             });
         } catch (Exception e) {
             logger.error("消息发送失败 [msgId: {}, topic: {}", msgId, topic, e);
             txMsgModel.markAsSendFailed(ExceptionUtils.getStackTrace(e));
-            future.complete(true);
+            future.complete(false);
         }
         future.join();
     }

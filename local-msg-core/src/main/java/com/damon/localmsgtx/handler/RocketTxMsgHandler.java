@@ -132,7 +132,7 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
             } catch (Throwable e) {
                 logger.error("消息发送失败 [msgId: {}, topic: {}]", model.getId(), message.getTopic(), e);
                 model.incrementRetry(ExceptionUtils.getStackTrace(e));
-                future.complete(true);
+                future.complete(false);
             }
             return future;
         }).collect(Collectors.toList());
