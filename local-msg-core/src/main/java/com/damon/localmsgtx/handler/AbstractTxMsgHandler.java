@@ -179,12 +179,12 @@ public abstract class AbstractTxMsgHandler {
      *
      * @param txMsgModel 事务消息模型
      */
-    protected abstract void sendMessage(TxMsgModel txMsgModel);
+    public abstract void sendMessage(TxMsgModel txMsgModel);
 
     /**
      * 批量发送消息（由子类实现具体MQ发送逻辑）
      *
      * @param txMsgModels 事务消息列表
      */
-    protected abstract void batchSendMessages(List<TxMsgModel> txMsgModels);
+    public abstract void batchSendMessages(List<TxMsgModel> txMsgModels);
 }

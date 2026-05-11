@@ -67,7 +67,7 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * 发送成功标记为已发送并持久化，发送失败抛出异常由上层处理。
      */
     @Override
-    protected void sendMessage(TxMsgModel txMsgModel) {
+    public void sendMessage(TxMsgModel txMsgModel) {
         String topic = txMsgModel.getTopic();
         String msgKey = txMsgModel.getMsgKey();
         String content = txMsgModel.getContent();
@@ -100,7 +100,7 @@ public class KafkaTxMsgHandler extends AbstractTxMsgHandler {
      * 失败消息累加重试次数，统一通过 save 持久化。
      */
     @Override
-    protected void batchSendMessages(List<TxMsgModel> txMsgModels) {
+    public void batchSendMessages(List<TxMsgModel> txMsgModels) {
         if (ListUtils.isEmpty(txMsgModels)) {
             return;
         }

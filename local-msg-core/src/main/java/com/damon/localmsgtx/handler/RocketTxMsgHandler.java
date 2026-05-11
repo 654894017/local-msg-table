@@ -68,7 +68,7 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
      * 发送成功标记为已发送并持久化，发送失败累加重试次数并持久化。
      */
     @Override
-    protected void sendMessage(TxMsgModel txMsgModel) {
+    public void sendMessage(TxMsgModel txMsgModel) {
         String topic = txMsgModel.getTopic();
         Long msgId = txMsgModel.getId();
         CompletableFuture<Boolean> future = new CompletableFuture<>();
@@ -106,7 +106,7 @@ public class RocketTxMsgHandler extends AbstractTxMsgHandler {
      * 失败消息累加重试次数，统一通过 save 持久化。
      */
     @Override
-    protected void batchSendMessages(List<TxMsgModel> models) {
+    public void batchSendMessages(List<TxMsgModel> models) {
         if (ListUtils.isEmpty(models)) {
             return;
         }
