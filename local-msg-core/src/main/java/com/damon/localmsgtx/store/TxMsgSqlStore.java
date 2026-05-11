@@ -61,8 +61,9 @@ public class TxMsgSqlStore {
               `create_time` bigint NOT NULL COMMENT '创建时间（毫秒时间戳）',
               `update_time` bigint NOT NULL COMMENT '更新时间（毫秒时间戳）',
               PRIMARY KEY (`id`),
-              UNIQUE KEY `uk_msgkey` (`msg_key`) USING BTREE COMMENT '消息唯一标识索引',
-              KEY `idx_status_createtime` (`status`,`create_time`) USING BTREE COMMENT '状态+时间联合索引（查询和清理使用）'
+              UNIQUE KEY `uk_msgkey` (`msg_key`) USING BTREE COMMENT '消息唯一标识索引（插入去重）',
+              KEY `idx_status_retrycount` (`status`,`retry_count`) USING BTREE COMMENT '待发送消息查询索引（status IN + retry_count <）',
+              KEY `idx_status_createtime` (`status`,`create_time`) USING BTREE COMMENT '过期消息清理索引（status = + create_time <=）'
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='事务消息存储表';
             """;
 
@@ -88,9 +89,7 @@ public class TxMsgSqlStore {
         this.topic = topic;
         initializeTable();
     }
-
-    // ==================== 公开方法 ====================
-
+    
     /**
      * 插入事务消息（初始状态为等待发送）
      *

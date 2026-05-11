@@ -70,11 +70,9 @@ public class TxMsgModel {
     private String remark;
 
     /**
-     * 版本号（乐观锁，由数据库自增，模型中记录查询时的版本）
+     * 版本号
      */
     private int version;
-
-    // ==================== 工厂方法 ====================
 
     /**
      * 创建新的事务消息（初始状态为等待发送）
